@@ -293,6 +293,7 @@ class BusinessProvider extends ChangeNotifier {
     final currentHalfStart = now.month <= 6
         ? DateTime(now.year, 1, 1)
         : DateTime(now.year, 7, 1);
+    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
 
     final halfSales =
         _salesList.where((s) => !s.yearMonth.isBefore(currentHalfStart)).toList();
@@ -310,6 +311,8 @@ class BusinessProvider extends ChangeNotifier {
       deemedPurchases: halfDeemed,
       accuracyScore: accuracyScore,
       period: period,
+      filledMonths: halfSales.length.clamp(0, monthsInHalf),
+      totalPeriodMonths: 6,
     );
   }
 
@@ -332,6 +335,8 @@ class BusinessProvider extends ChangeNotifier {
       profile: _profile,
       accuracyScore: accuracyScore,
       period: period,
+      filledMonths: yearSales.length.clamp(0, now.month),
+      totalPeriodMonths: 12,
     );
   }
 

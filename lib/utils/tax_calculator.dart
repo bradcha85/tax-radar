@@ -20,25 +20,37 @@ class TaxCalculator {
     required List<DeemedPurchase> deemedPurchases,
     required int accuracyScore,
     required String period,
+    int filledMonths = 6,
+    int totalPeriodMonths = 6,
   }) {
-    // 반기 합산
-    final totalSales = salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
-    final totalCardSales = salesList.fold<int>(
+    // 외삽 계수: 입력된 월 → 반기(6개월) 전체 추정
+    final scale = (filledMonths > 0 && filledMonths < totalPeriodMonths)
+        ? totalPeriodMonths / filledMonths
+        : 1.0;
+
+    // 반기 합산 (외삽 적용)
+    final rawSales = salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
+    final totalSales = (rawSales * scale).round();
+    final rawCardSales = salesList.fold<int>(
       0,
       (sum, s) => sum + (s.cardSales ?? (s.totalSales * 0.75).round()),
     );
-    final totalCashReceiptSales = salesList.fold<int>(
+    final totalCardSales = (rawCardSales * scale).round();
+    final rawCashReceiptSales = salesList.fold<int>(
       0,
       (sum, s) => sum + (s.cashReceiptSales ?? (s.totalSales * 0.10).round()),
     );
-    final totalExpenses = expensesList.fold<int>(
+    final totalCashReceiptSales = (rawCashReceiptSales * scale).round();
+    final rawExpenses = expensesList.fold<int>(
       0,
       (sum, e) => sum + (e.taxableExpenses ?? e.totalExpenses),
     );
-    final totalDeemedAmount = deemedPurchases.fold<int>(
+    final totalExpenses = (rawExpenses * scale).round();
+    final rawDeemedAmount = deemedPurchases.fold<int>(
       0,
       (sum, d) => sum + d.amount,
     );
+    final totalDeemedAmount = (rawDeemedAmount * scale).round();
 
     // ① 매출세액 = 총 매출 ÷ 11
     final salesTax =
@@ -88,19 +100,28 @@ class TaxCalculator {
     required UserProfile profile,
     required int accuracyScore,
     required String period,
+    int filledMonths = 12,
+    int totalPeriodMonths = 12,
   }) {
-    // 연간 매출 (VAT 제외)
+    // 외삽 계수: 입력된 월 → 연간(12개월) 전체 추정
+    final scale = (filledMonths > 0 && filledMonths < totalPeriodMonths)
+        ? totalPeriodMonths / filledMonths
+        : 1.0;
+
+    // 연간 매출 (VAT 제외, 외삽 적용)
     final totalSalesRaw =
         salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
+    final scaledSales = (totalSalesRaw * scale).round();
     final annualRevenue =
-        business.vatInclusive ? (totalSalesRaw / 1.1).round() : totalSalesRaw;
+        business.vatInclusive ? (scaledSales / 1.1).round() : scaledSales;
 
     int taxableIncome;
 
     if (profile.hasBookkeeping) {
       // 기장 신고: 매출 - 실제 경비
-      final totalExpenses =
+      final rawExpenses =
           expensesList.fold<int>(0, (sum, e) => sum + e.totalExpenses);
+      final totalExpenses = (rawExpenses * scale).round();
       taxableIncome = annualRevenue - totalExpenses;
     } else {
       // 추계 신고: 매출 × (1 - 단순경비율)

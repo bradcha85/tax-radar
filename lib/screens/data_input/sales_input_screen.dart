@@ -32,10 +32,7 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
   List<DateTime> _getLast6Months() {
     final now = DateTime.now();
     return List.generate(6, (i) {
-      final m = now.month - 5 + i;
-      final year = now.year + ((m - 1) ~/ 12);
-      final month = ((m - 1) % 12) + 1;
-      return DateTime(year, month, 1);
+      return DateTime(now.year, now.month - 5 + i, 1);
     });
   }
 
