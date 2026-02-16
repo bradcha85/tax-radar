@@ -184,19 +184,6 @@ class TaxCalculator {
   }
 
   // ============================================================
-  // 세금 날씨
-  // ============================================================
-
-  /// 매출 대비 세금 비율로 날씨 결정
-  static TaxWeather getWeather(int predictedMid, int totalSales) {
-    if (totalSales == 0) return TaxWeather.sunny;
-    final ratio = predictedMid / totalSales;
-    if (ratio <= 0.035) return TaxWeather.sunny;
-    if (ratio <= 0.05) return TaxWeather.cloudy;
-    return TaxWeather.stormy;
-  }
-
-  // ============================================================
   // Private helpers
   // ============================================================
 
@@ -245,10 +232,4 @@ class TaxCalculator {
     if (accuracy >= 20) return 0.45;
     return 0.60;
   }
-}
-
-enum TaxWeather {
-  sunny,  // ☀️ 맑음
-  cloudy, // ⛅ 흐림
-  stormy, // ⛈️ 주의
 }

@@ -20,19 +20,6 @@ class FirstSalesScreen extends StatefulWidget {
 class _FirstSalesScreenState extends State<FirstSalesScreen> {
   int? _selectedAmount;
   double _cardRatio = 0.75;
-  late DateTime _selectedMonth;
-  late List<DateTime> _monthOptions;
-
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    _selectedMonth = DateTime(now.year, now.month, 1);
-    _monthOptions = List.generate(3, (i) {
-      final date = DateTime(now.year, now.month - i, 1);
-      return DateTime(date.year, date.month, 1);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +55,7 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
                 children: [
                   // Title
                   Text(
-                    '첫 번째 매출을 입력해 주세요',
+                    '평균 월매출이 대략 얼마인가요?',
                     style: AppTypography.textTheme.titleLarge,
                   ),
                   const SizedBox(height: 20),
@@ -91,7 +78,7 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '월 매출 대략 얼마인가요?',
+                                '정확하지 않아도 괜찮아요',
                                 style:
                                     AppTypography.textTheme.bodySmall?.copyWith(
                                   color: AppColors.textSecondary,
@@ -116,57 +103,6 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
 
                   // Card ratio section (only visible after amount selected)
                   if (_selectedAmount != null) ...[
-                    const SizedBox(height: 32),
-
-                    // Month selector
-                    Text(
-                      '어느 달 매출인가요?',
-                      style: AppTypography.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      children: _monthOptions.map((month) {
-                        final isSelected =
-                            month.year == _selectedMonth.year &&
-                                month.month == _selectedMonth.month;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() => _selectedMonth = month);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primaryLight
-                                  : AppColors.surface,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              Formatters.formatMonth(month),
-                              style:
-                                  AppTypography.textTheme.bodyMedium?.copyWith(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.textPrimary,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
                     const SizedBox(height: 32),
 
                     // Card ratio slider
@@ -320,13 +256,16 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
   void _onNext() {
     if (_selectedAmount == null) return;
 
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month, 1);
+
     final total = _selectedAmount!;
     final cardAmount = (total * _cardRatio).round();
     final cashReceiptAmount = (total * 0.10).round();
     final otherCash = (total - cardAmount - cashReceiptAmount).clamp(0, total);
 
     final sales = MonthlySales(
-      yearMonth: _selectedMonth,
+      yearMonth: currentMonth,
       totalSales: total,
       cardSales: cardAmount,
       cashReceiptSales: cashReceiptAmount,

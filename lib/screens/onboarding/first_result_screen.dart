@@ -6,7 +6,6 @@ import '../../providers/business_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/formatters.dart';
-import '../../widgets/weather_icon.dart';
 import '../../widgets/range_bar.dart';
 import '../../widgets/notion_card.dart';
 
@@ -17,7 +16,6 @@ class FirstResultScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<BusinessProvider>();
     final prediction = provider.vatPrediction;
-    final weather = provider.taxWeather;
     final accuracy = provider.accuracyScore;
 
     return Scaffold(
@@ -31,11 +29,6 @@ class FirstResultScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     const SizedBox(height: 32),
-
-                    // Weather icon
-                    WeatherIcon(weather: weather),
-
-                    const SizedBox(height: 24),
 
                     // Title
                     Text(

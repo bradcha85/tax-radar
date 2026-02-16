@@ -193,9 +193,9 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: AppTypography.textTheme.bodyMedium,
             decoration: InputDecoration(
-              hintText: '금액 입력 (원)',
+              hintText: '금액 입력 (만원)',
               hintStyle: AppTypography.hint,
-              suffixText: '원',
+              suffixText: '만원',
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               border: OutlineInputBorder(
@@ -211,10 +211,16 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
                 borderSide: const BorderSide(color: AppColors.primary),
               ),
             ),
+            onChanged: (value) {
+              final manWon = int.tryParse(value);
+              if (manWon != null && manWon > 0) {
+                widget.onSelected(manWon * 10000);
+              }
+            },
             onSubmitted: (value) {
-              final amount = int.tryParse(value);
-              if (amount != null) {
-                widget.onSelected(amount);
+              final manWon = int.tryParse(value);
+              if (manWon != null && manWon > 0) {
+                widget.onSelected(manWon * 10000);
               }
             },
           ),

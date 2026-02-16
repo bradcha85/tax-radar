@@ -335,13 +335,6 @@ class BusinessProvider extends ChangeNotifier {
     );
   }
 
-  /// 세금 날씨
-  TaxWeather get taxWeather {
-    final vat = vatPrediction;
-    final totalSales = _salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
-    return TaxCalculator.getWeather(vat.midPoint, totalSales);
-  }
-
   /// 반기 총 매출
   int get halfYearTotalSales {
     final now = DateTime.now();
