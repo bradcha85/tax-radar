@@ -1,4 +1,26 @@
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
+/// 숫자 입력 시 천 단위 콤마 자동 포맷 (여러 화면에서 공유)
+class ThousandsSeparatorFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+
+    final digits = newValue.text.replaceAll(',', '');
+    final number = int.tryParse(digits);
+    if (number == null) return oldValue;
+
+    final formatted = Formatters.formatWon(number);
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class Formatters {
   Formatters._();

@@ -1323,7 +1323,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
-            if (!isCount) _ThousandsSeparatorFormatter(),
+            if (!isCount) ThousandsSeparatorFormatter(),
           ],
           onChanged: (text) {
             final parsed = _parseAmount(text);
@@ -1369,7 +1369,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
       keyboardType: TextInputType.number,
       inputFormatters: [
         FilteringTextInputFormatter.digitsOnly,
-        _ThousandsSeparatorFormatter(),
+        ThousandsSeparatorFormatter(),
       ],
       onChanged: (text) {
         final parsed = _parseAmount(text);
@@ -1799,24 +1799,6 @@ class _ActionTile extends StatelessWidget {
           TextButton(onPressed: onTap, child: Text(buttonText)),
         ],
       ),
-    );
-  }
-}
-
-class _ThousandsSeparatorFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) return newValue;
-    final digits = newValue.text.replaceAll(',', '');
-    final value = int.tryParse(digits);
-    if (value == null) return oldValue;
-    final text = Formatters.formatWon(value);
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }

@@ -152,7 +152,7 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                _ThousandsSeparatorFormatter(),
+                ThousandsSeparatorFormatter(),
               ],
               style: AppTypography.amountSmall,
               onChanged: (_) => setState(() {}),
@@ -275,26 +275,6 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ThousandsSeparatorFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) return newValue;
-
-    final digits = newValue.text.replaceAll(',', '');
-    final number = int.tryParse(digits);
-    if (number == null) return oldValue;
-
-    final formatted = Formatters.formatWon(number);
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

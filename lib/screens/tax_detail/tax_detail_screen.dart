@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../providers/business_provider.dart';
+import '../../models/monthly_sales.dart';
+import '../../models/monthly_expenses.dart';
+import '../../models/deemed_purchase.dart';
+import '../../data/glossary_terms.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/range_bar.dart';
 import '../../widgets/notion_card.dart';
+import '../../widgets/term_help_header.dart';
+
+enum _EditField { none, sales, expenses, deemed }
 
 class TaxDetailScreen extends StatefulWidget {
   final String taxType;
@@ -20,6 +28,132 @@ class TaxDetailScreen extends StatefulWidget {
 class _TaxDetailScreenState extends State<TaxDetailScreen> {
   bool get isVat => widget.taxType == 'vat';
 
+  _EditField _editingField = _EditField.none;
+  double _editCardRatio = 0.75;
+
+  /// 월별 편집 컨트롤러 (월 → controller)
+  final List<_MonthEditEntry> _editEntries = [];
+
+  @override
+  void dispose() {
+    _disposeEditEntries();
+    super.dispose();
+  }
+
+  void _disposeEditEntries() {
+    for (final entry in _editEntries) {
+      entry.controller.dispose();
+    }
+    _editEntries.clear();
+  }
+
+  /// 현재 반기의 1월~현재 월까지 전체 목록
+  List<DateTime> _getHalfYearMonths() {
+    final now = DateTime.now();
+    final startMonth = now.month <= 6 ? 1 : 7;
+    return [
+      for (var m = startMonth; m <= now.month; m++)
+        DateTime(now.year, m, 1),
+    ];
+  }
+
+  void _startEditing(_EditField field, BusinessProvider provider) {
+    if (field == _EditField.none) return;
+
+    _disposeEditEntries();
+
+    final months = _getHalfYearMonths();
+    double cardRatio = 0.75;
+
+    for (final month in months) {
+      int value = 0;
+      switch (field) {
+        case _EditField.sales:
+          final existing = provider.getSalesForMonth(month);
+          if (existing != null) {
+            value = existing.totalSales;
+            cardRatio = existing.cardRatio;
+          }
+        case _EditField.expenses:
+          final list = provider.expensesList.where(
+            (e) =>
+                e.yearMonth.year == month.year &&
+                e.yearMonth.month == month.month,
+          );
+          if (list.isNotEmpty) {
+            value = list.first.taxableExpenses ?? list.first.totalExpenses;
+          }
+        case _EditField.deemed:
+          final list = provider.deemedPurchases.where(
+            (d) =>
+                d.yearMonth.year == month.year &&
+                d.yearMonth.month == month.month,
+          );
+          if (list.isNotEmpty) {
+            value = list.first.amount;
+          }
+        case _EditField.none:
+          break;
+      }
+
+      final controller = TextEditingController(
+        text: value > 0 ? Formatters.formatWon(value) : '',
+      );
+      _editEntries.add(_MonthEditEntry(month: month, controller: controller));
+    }
+
+    setState(() {
+      _editingField = field;
+      _editCardRatio = cardRatio;
+    });
+  }
+
+  void _cancelEditing() {
+    _disposeEditEntries();
+    setState(() {
+      _editingField = _EditField.none;
+    });
+  }
+
+  void _saveEditing(BusinessProvider provider) {
+    for (final entry in _editEntries) {
+      final digits = entry.controller.text.replaceAll(',', '');
+      final value = int.tryParse(digits) ?? 0;
+
+      switch (_editingField) {
+        case _EditField.sales:
+          final cardSales = (value * _editCardRatio).round();
+          final cashReceiptRatio = (1 - _editCardRatio) * 0.6;
+          final cashReceipt = (value * cashReceiptRatio).round();
+          provider.addSales(MonthlySales(
+            yearMonth: entry.month,
+            totalSales: value,
+            cardSales: cardSales,
+            cashReceiptSales: cashReceipt,
+            otherCashSales: value - cardSales - cashReceipt,
+          ));
+        case _EditField.expenses:
+          provider.addExpenses(MonthlyExpenses(
+            yearMonth: entry.month,
+            totalExpenses: value,
+            taxableExpenses: value,
+          ));
+        case _EditField.deemed:
+          provider.addDeemedPurchase(DeemedPurchase(
+            yearMonth: entry.month,
+            amount: value,
+          ));
+        case _EditField.none:
+          break;
+      }
+    }
+
+    _disposeEditEntries();
+    setState(() {
+      _editingField = _EditField.none;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<BusinessProvider>();
@@ -31,9 +165,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
         provider.vatExtrapolationEnabled &&
         provider.salesCompletionPercent < 100;
 
-    final title = isVat
-        ? '\uBD80\uAC00\uC138 \uC0C1\uC138'
-        : '\uC885\uC18C\uC138 \uC0C1\uC138';
+    final title = isVat ? '부가세 상세' : '종소세 상세';
     final subtitle = prediction.period;
 
     return Scaffold(
@@ -60,7 +192,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '\uC608\uC0C1 \uB0A9\uBD80\uC138\uC561',
+                    '예상 납부세액',
                     style: AppTypography.textTheme.titleSmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -135,8 +267,17 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
             ],
             const SizedBox(height: 20),
 
+            // Estimation basis (extrapolation mode only)
+            if (isVat &&
+                provider.vatExtrapolationEnabled &&
+                provider.vatFilledMonths > 0 &&
+                provider.vatFilledMonths < 6) ...[
+              _buildEstimationBasis(provider),
+              const SizedBox(height: 12),
+            ],
+
             // Section divider
-            _sectionDivider('\uAD6C\uC131\uC694\uC18C'),
+            _sectionDivider('구성요소'),
             const SizedBox(height: 12),
 
             // Breakdown
@@ -157,7 +298,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: const EdgeInsets.only(top: 8, bottom: 4),
                   title: Text(
-                    '\u25B6 \uACC4\uC0B0 \uACFC\uC815 \uBCF4\uAE30',
+                    '▶ 계산 과정 보기',
                     style: AppTypography.textTheme.titleSmall?.copyWith(
                       color: AppColors.primary,
                     ),
@@ -185,6 +326,462 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     );
   }
 
+  // ============================================================
+  // 추정 근거 카드
+  // ============================================================
+
+  Widget _buildEstimationBasis(BusinessProvider provider) {
+    final filled = provider.vatFilledMonths;
+    final scale = filled > 0 ? (6.0 / filled) : 1.0;
+    final inputBreakdown = provider.vatBreakdownInputOnly;
+    final estimatedBreakdown = provider.vatBreakdown;
+
+    return NotionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '추정 근거',
+            style: AppTypography.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '입력 $filled개월 기반 → 6개월 추정 (×${scale.toStringAsFixed(1)}배)',
+            style: AppTypography.textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Header
+          Row(
+            children: [
+              const Expanded(flex: 3, child: SizedBox.shrink()),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  '입력분',
+                  textAlign: TextAlign.end,
+                  style: AppTypography.textTheme.labelSmall?.copyWith(
+                    color: AppColors.textHint,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '→',
+                style: AppTypography.textTheme.labelSmall?.copyWith(
+                  color: AppColors.textHint,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  '추정분',
+                  textAlign: TextAlign.end,
+                  style: AppTypography.textTheme.labelSmall?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _estimationRow(
+            '총매출',
+            inputBreakdown.totalSales,
+            estimatedBreakdown.totalSales,
+          ),
+          _estimationRow(
+            '과세매입',
+            inputBreakdown.taxableExpenses,
+            estimatedBreakdown.taxableExpenses,
+          ),
+          _estimationRow(
+            '면세매입',
+            inputBreakdown.deemedPurchaseAmount,
+            estimatedBreakdown.deemedPurchaseAmount,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _estimationRow(String label, int inputValue, int estimatedValue) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              label,
+              style: AppTypography.textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              Formatters.toManWon(inputValue),
+              textAlign: TextAlign.end,
+              style: AppTypography.textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '→',
+            style: AppTypography.textTheme.bodySmall?.copyWith(
+              color: AppColors.textHint,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: Text(
+              Formatters.toManWon(estimatedValue),
+              textAlign: TextAlign.end,
+              style: AppTypography.textTheme.bodySmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // 부가세 구성요소
+  // ============================================================
+
+  Widget _buildVatBreakdown(BusinessProvider provider) {
+    final breakdown = provider.vatBreakdown;
+    final inputBreakdown = provider.vatBreakdownInputOnly;
+    final filled = provider.vatFilledMonths;
+    final otherCashSales = breakdown.otherCashSales;
+    final otherCashSalesSafe = otherCashSales < 0 ? 0 : otherCashSales;
+
+    final summaryLabel = filled > 0 ? '($filled개월 합계)' : '';
+
+    return NotionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── 매출세액 ──
+          _editableLineItem(
+            label: '매출세액',
+            value: '+${Formatters.toManWonWithUnit(breakdown.salesTax)}',
+            isBold: true,
+            termId: 'V03',
+            field: _EditField.sales,
+            provider: provider,
+          ),
+          const SizedBox(height: 4),
+          _subItemWithDetail(
+            '총매출 ${Formatters.toManWon(inputBreakdown.totalSales)} $summaryLabel',
+            _EditField.sales,
+            provider,
+          ),
+          const SizedBox(height: 2),
+          _subItem('├', '카드매출', Formatters.toManWon(breakdown.cardSales)),
+          _subItem('├', '현금영수증', Formatters.toManWon(breakdown.cashReceiptSales)),
+          _subItem('└', '기타현금', Formatters.toManWon(otherCashSalesSafe)),
+
+          // 매출 인라인 편집
+          _buildInlineEditor(_EditField.sales, provider, '총매출액 (원)'),
+
+          const SizedBox(height: 16),
+
+          // ── 과세 매입세액 ──
+          _editableLineItem(
+            label: '과세 매입세액',
+            value: '-${Formatters.toManWonWithUnit(breakdown.purchaseTax)}',
+            isBold: true,
+            color: AppColors.success,
+            termId: 'V04',
+            field: _EditField.expenses,
+            provider: provider,
+          ),
+          const SizedBox(height: 4),
+          _subItemWithDetail(
+            '과세매입 ${Formatters.toManWon(inputBreakdown.taxableExpenses)}',
+            _EditField.expenses,
+            provider,
+          ),
+
+          // 과세매입 인라인 편집
+          _buildInlineEditor(_EditField.expenses, provider, '과세매입액 (원)'),
+
+          const SizedBox(height: 16),
+
+          // ── 의제매입세액공제 ──
+          _editableLineItem(
+            label: '의제매입세액공제',
+            value: '-${Formatters.toManWonWithUnit(breakdown.deemedPurchaseCredit)}',
+            isBold: true,
+            color: AppColors.success,
+            termId: 'V05',
+            field: _EditField.deemed,
+            provider: provider,
+          ),
+          const SizedBox(height: 4),
+          _subItemWithDetail(
+            '면세매입 ${Formatters.toManWon(inputBreakdown.deemedPurchaseAmount)}',
+            _EditField.deemed,
+            provider,
+          ),
+
+          // 면세매입 인라인 편집
+          _buildInlineEditor(_EditField.deemed, provider, '면세매입액 (원)'),
+
+          const SizedBox(height: 16),
+
+          // ── 신카발행세액공제 ──
+          _lineItem(
+            '신카발행세액공제',
+            '-${Formatters.toManWonWithUnit(breakdown.cardIssuanceCredit)}',
+            isBold: true,
+            color: AppColors.success,
+            termId: 'V06',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // 편집 가능 라인 아이템 + 인라인 편집 UI
+  // ============================================================
+
+  Widget _editableLineItem({
+    required String label,
+    required String value,
+    required _EditField field,
+    required BusinessProvider provider,
+    String? termId,
+    bool isBold = false,
+    Color? color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                if (termId != null) ...[
+                  const SizedBox(width: 6),
+                  _helpIcon(termId),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: isBold
+                ? AppTypography.amountSmall.copyWith(color: color)
+                : AppTypography.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _subItemWithDetail(
+    String detailText,
+    _EditField field,
+    BusinessProvider provider,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, top: 2, bottom: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              detailText,
+              style: AppTypography.textTheme.bodySmall?.copyWith(
+                color: AppColors.textHint,
+              ),
+            ),
+          ),
+          if (_editingField != field)
+            GestureDetector(
+              onTap: () => _startEditing(field, provider),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.edit_outlined,
+                  size: 16,
+                  color: AppColors.textHint,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineEditor(
+    _EditField field,
+    BusinessProvider provider,
+    String hintText,
+  ) {
+    final isEditing = _editingField == field;
+    return AnimatedCrossFade(
+      duration: const Duration(milliseconds: 200),
+      crossFadeState:
+          isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+      firstChild: const SizedBox.shrink(),
+      secondChild: isEditing
+          ? Padding(
+              padding: const EdgeInsets.only(left: 16, top: 8, bottom: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 월별 TextField
+                  for (var i = 0; i < _editEntries.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 8),
+                    TextField(
+                      controller: _editEntries[i].controller,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        ThousandsSeparatorFormatter(),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: '${_editEntries[i].month.month}월',
+                        hintText: hintText,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                        suffixText: '원',
+                      ),
+                      style: AppTypography.textTheme.bodyMedium,
+                      autofocus: i == 0,
+                    ),
+                  ],
+                  if (field == _EditField.sales) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          '카드비율',
+                          style: AppTypography.textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Expanded(
+                          child: StatefulBuilder(
+                            builder: (context, setSliderState) {
+                              return Slider(
+                                value: _editCardRatio,
+                                min: 0,
+                                max: 1,
+                                divisions: 20,
+                                label:
+                                    '${(_editCardRatio * 100).round()}%',
+                                onChanged: (v) {
+                                  setSliderState(() {
+                                    _editCardRatio = v;
+                                  });
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                        SizedBox(
+                          width: 40,
+                          child: Text(
+                            '${(_editCardRatio * 100).round()}%',
+                            style:
+                                AppTypography.textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.end,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _cancelEditing,
+                        child: Text(
+                          '취소',
+                          style: AppTypography.textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () => _saveEditing(provider),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('저장'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+
+  // ============================================================
+  // 공통 위젯
+  // ============================================================
+
   Widget _sectionDivider(String label) {
     return Row(
       children: [
@@ -203,136 +800,28 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     );
   }
 
-  Widget _buildVatBreakdown(BusinessProvider provider) {
-    final breakdown = provider.vatBreakdown;
-    final otherCashSales = breakdown.otherCashSales;
-    final otherCashSalesSafe = otherCashSales < 0 ? 0 : otherCashSales;
-
-    return NotionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Sales tax
-          _lineItem(
-            '\uB9E4\uCD9C\uC138\uC561',
-            '+${Formatters.toManWonWithUnit(breakdown.salesTax)}',
-            isBold: true,
+  Widget _helpIcon(String termId) {
+    final term = kGlossaryTermMap[termId];
+    if (term == null) return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: () => showWhereToFindSheet(context, term),
+      child: Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.border),
+          color: AppColors.surface,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '?',
+          style: AppTypography.textTheme.labelSmall?.copyWith(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+            height: 1,
           ),
-          const SizedBox(height: 6),
-          _subItem(
-            '\u251C',
-            '\uCE74\uB4DC\uB9E4\uCD9C',
-            Formatters.toManWon(breakdown.cardSales),
-          ),
-          _subItem(
-            '\u251C',
-            '\uD604\uAE08\uC601\uC218\uC99D',
-            Formatters.toManWon(breakdown.cashReceiptSales),
-          ),
-          _subItem(
-            '\u2514',
-            '\uAE30\uD0C0\uD604\uAE08',
-            Formatters.toManWon(otherCashSalesSafe),
-          ),
-          const SizedBox(height: 16),
-
-          // Purchase tax
-          _lineItem(
-            '\uACFC\uC138 \uB9E4\uC785\uC138\uC561',
-            '-${Formatters.toManWonWithUnit(breakdown.purchaseTax)}',
-            isBold: true,
-            color: AppColors.success,
-          ),
-          const SizedBox(height: 16),
-
-          // Deemed credit
-          _lineItem(
-            '\uC758\uC81C\uB9E4\uC785\uC138\uC561\uACF5\uC81C',
-            '-${Formatters.toManWonWithUnit(breakdown.deemedPurchaseCredit)}',
-            isBold: true,
-            color: AppColors.success,
-          ),
-          const SizedBox(height: 16),
-
-          // Card credit
-          _lineItem(
-            '\uC2E0\uCE74\uBC1C\uD589\uC138\uC561\uACF5\uC81C',
-            '-${Formatters.toManWonWithUnit(breakdown.cardIssuanceCredit)}',
-            isBold: true,
-            color: AppColors.success,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIncomeTaxBreakdown(BusinessProvider provider) {
-    final breakdown = provider.incomeTaxBreakdown;
-    final profile = provider.profile;
-
-    String expenseLabel;
-    if (profile.hasBookkeeping) {
-      expenseLabel = '\uD544\uC694\uACBD\uBE44 (\uAE30\uC7A5)';
-    } else {
-      final rate = breakdown.simpleExpenseRate ?? 0;
-      expenseLabel =
-          '\uD544\uC694\uACBD\uBE44 (\uCD94\uACC4 ${(rate * 100).toStringAsFixed(1)}%)';
-    }
-
-    final taxBase = breakdown.taxBase < 0 ? 0 : breakdown.taxBase;
-
-    return NotionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _lineItem(
-            '\uCD1D\uC218\uC785\uAE08\uC561',
-            Formatters.toManWonWithUnit(breakdown.annualRevenue),
-            isBold: true,
-          ),
-          const SizedBox(height: 10),
-          _lineItem(
-            '- $expenseLabel',
-            Formatters.toManWonWithUnit(breakdown.expenses),
-            color: AppColors.success,
-          ),
-          const Divider(color: AppColors.border, height: 24),
-          _lineItem(
-            '= \uC18C\uB4DD\uAE08\uC561',
-            Formatters.toManWonWithUnit(breakdown.taxableIncome),
-            isBold: true,
-          ),
-          const SizedBox(height: 10),
-          _lineItem(
-            '- \uC778\uC801\uACF5\uC81C',
-            Formatters.toManWonWithUnit(breakdown.personalDeduction),
-            color: AppColors.success,
-          ),
-          if (breakdown.yellowUmbrellaAnnual > 0) ...[
-            const SizedBox(height: 6),
-            _lineItem(
-              '- \uB178\uB780\uC6B0\uC0B0\uACF5\uC81C',
-              Formatters.toManWonWithUnit(breakdown.yellowUmbrellaAnnual),
-              color: AppColors.success,
-            ),
-          ],
-          const Divider(color: AppColors.border, height: 24),
-          _lineItem(
-            '= \uACFC\uC138\uD45C\uC900',
-            Formatters.toManWonWithUnit(taxBase),
-            isBold: true,
-          ),
-          const SizedBox(height: 10),
-          _lineItem(
-            '\uC138\uC728 \uC801\uC6A9 \u2192',
-            Formatters.toManWonWithUnit(breakdown.incomeTax),
-          ),
-          const SizedBox(height: 6),
-          _lineItem(
-            '+ \uC9C0\uBC29\uC18C\uB4DD\uC138 (10%)',
-            Formatters.toManWonWithUnit(breakdown.localTax),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -342,20 +831,33 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     String value, {
     bool isBold = false,
     Color? color,
+    String? termId,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Flexible(
-            child: Text(
-              label,
-              style: AppTypography.textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          Expanded(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                if (termId != null) ...[
+                  const SizedBox(width: 6),
+                  _helpIcon(termId),
+                ],
+              ],
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             value,
             style: isBold
@@ -401,13 +903,92 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     );
   }
 
+  // ============================================================
+  // 종소세 구성요소
+  // ============================================================
+
+  Widget _buildIncomeTaxBreakdown(BusinessProvider provider) {
+    final breakdown = provider.incomeTaxBreakdown;
+    final profile = provider.profile;
+
+    String expenseLabel;
+    if (profile.hasBookkeeping) {
+      expenseLabel = '필요경비 (기장)';
+    } else {
+      final rate = breakdown.simpleExpenseRate ?? 0;
+      expenseLabel =
+          '필요경비 (추계 ${(rate * 100).toStringAsFixed(1)}%)';
+    }
+
+    final taxBase = breakdown.taxBase < 0 ? 0 : breakdown.taxBase;
+
+    return NotionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _lineItem(
+            '총수입금액',
+            Formatters.toManWonWithUnit(breakdown.annualRevenue),
+            isBold: true,
+          ),
+          const SizedBox(height: 10),
+          _lineItem(
+            '- $expenseLabel',
+            Formatters.toManWonWithUnit(breakdown.expenses),
+            color: AppColors.success,
+          ),
+          const Divider(color: AppColors.border, height: 24),
+          _lineItem(
+            '= 소득금액',
+            Formatters.toManWonWithUnit(breakdown.taxableIncome),
+            isBold: true,
+          ),
+          const SizedBox(height: 10),
+          _lineItem(
+            '- 인적공제',
+            Formatters.toManWonWithUnit(breakdown.personalDeduction),
+            color: AppColors.success,
+          ),
+          if (breakdown.yellowUmbrellaAnnual > 0) ...[
+            const SizedBox(height: 6),
+            _lineItem(
+              '- 노란우산공제',
+              Formatters.toManWonWithUnit(breakdown.yellowUmbrellaAnnual),
+              color: AppColors.success,
+            ),
+          ],
+          const Divider(color: AppColors.border, height: 24),
+          _lineItem(
+            '= 과세표준',
+            Formatters.toManWonWithUnit(taxBase),
+            isBold: true,
+          ),
+          const SizedBox(height: 10),
+          _lineItem(
+            '세율 적용 →',
+            Formatters.toManWonWithUnit(breakdown.incomeTax),
+          ),
+          const SizedBox(height: 6),
+          _lineItem(
+            '+ 지방소득세 (10%)',
+            Formatters.toManWonWithUnit(breakdown.localTax),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // 계산 과정 설명
+  // ============================================================
+
   Widget _buildVatExplanation() {
     return Text(
-      '\uBD80\uAC00\uC138 = \uB9E4\uCD9C\uC138\uC561 - \uB9E4\uC785\uC138\uC561 - \uC758\uC81C\uB9E4\uC785\uC138\uC561\uACF5\uC81C - \uC2E0\uCE74\uBC1C\uD589\uC138\uC561\uACF5\uC81C\n\n'
-      '\u2022 \uB9E4\uCD9C\uC138\uC561 = \uCD1D\uB9E4\uCD9C \u00F7 11 (VAT \uD3EC\uD568 \uAE30\uC900)\n'
-      '\u2022 \uB9E4\uC785\uC138\uC561 = \uACFC\uC138 \uB9E4\uC785 \u00F7 11\n'
-      '\u2022 \uC758\uC81C\uB9E4\uC785 = min(\uBA74\uC138\uB9E4\uC785\uC561, \uACFC\uC138\uD45C\uC900\u00D7\uD55C\uB3C4\uC728) \u00D7 \uACF5\uC81C\uC728 (9/109 \uB610\uB294 8/108)\n'
-      '\u2022 \uC2E0\uCE74\uACF5\uC81C = (\uCE74\uB4DC+\uD604\uAE08\uC601\uC218\uC99D) \u00D7 \uACF5\uC81C\uC728, \uC5F0\uAC04 \uD55C\uB3C4 1\uCC9C\uB9CC (2026.12.31\uAE4C\uC9C0)',
+      '부가세 = 매출세액 - 매입세액 - 의제매입세액공제 - 신카발행세액공제\n\n'
+      '• 매출세액 = 총매출 ÷ 11 (VAT 포함 기준)\n'
+      '• 매입세액 = 과세 매입 ÷ 11\n'
+      '• 의제매입 = min(면세매입액, 과세표준×한도율) × 공제율 (9/109 또는 8/108)\n'
+      '• 신카공제 = (카드+현금영수증) × 공제율, 연간 한도 1천만 (2026.12.31까지)',
       style: AppTypography.textTheme.bodySmall?.copyWith(
         color: AppColors.textSecondary,
         height: 1.8,
@@ -417,21 +998,25 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
 
   Widget _buildIncomeTaxExplanation() {
     return Text(
-      '\uC885\uD569\uC18C\uB4DD\uC138 \uACC4\uC0B0 \uACFC\uC815:\n\n'
-      '1. \uCD1D\uC218\uC785\uAE08\uC561 (VAT \uC81C\uC678)\n'
-      '2. - \uD544\uC694\uACBD\uBE44 (\uAE30\uC7A5 \uB610\uB294 \uB2E8\uC21C\uACBD\uBE44\uC728)\n'
-      '3. = \uC18C\uB4DD\uAE08\uC561\n'
-      '4. - \uC778\uC801\uACF5\uC81C (\uBCF8\uC778 150\uB9CC + \uBC30\uC6B0\uC790/\uBD80\uC591\uAC00\uC871)\n'
-      '5. - \uB178\uB780\uC6B0\uC0B0\uACF5\uC81C\n'
-      '6. = \uACFC\uC138\uD45C\uC900\n'
-      '7. \uC138\uC728\uD45C \uC801\uC6A9 (6%~45% \uB204\uC9C4)\n'
-      '8. + \uC9C0\uBC29\uC18C\uB4DD\uC138 10%',
+      '종합소득세 계산 과정:\n\n'
+      '1. 총수입금액 (VAT 제외)\n'
+      '2. - 필요경비 (기장 또는 단순경비율)\n'
+      '3. = 소득금액\n'
+      '4. - 인적공제 (본인 150만 + 배우자/부양가족)\n'
+      '5. - 노란우산공제\n'
+      '6. = 과세표준\n'
+      '7. 세율표 적용 (6%~45% 누진)\n'
+      '8. + 지방소득세 10%',
       style: AppTypography.textTheme.bodySmall?.copyWith(
         color: AppColors.textSecondary,
         height: 1.8,
       ),
     );
   }
+
+  // ============================================================
+  // 데이터 부족 힌트
+  // ============================================================
 
   Widget _buildMissingDataHint(
     BuildContext context,
@@ -441,15 +1026,15 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     String? route;
 
     if (provider.salesCompletionPercent == 0) {
-      missing.add('\uB9E4\uCD9C');
+      missing.add('매출');
       route = '/data/sales-input';
     }
     if (provider.expenseCompletionPercent == 0) {
-      missing.add('\uC9C0\uCD9C');
+      missing.add('지출');
       route ??= '/data/expense-input';
     }
     if (provider.deemedCompletionPercent == 0) {
-      missing.add('\uC758\uC81C\uB9E4\uC785');
+      missing.add('의제매입');
       route ??= '/data/deemed-purchase';
     }
 
@@ -462,12 +1047,12 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '\u{1F4A1} \uBC94\uC704\uAC00 \uB113\uC740 \uC774\uC720:',
+            '\u{1F4A1} 범위가 넓은 이유:',
             style: AppTypography.textTheme.titleSmall,
           ),
           const SizedBox(height: 8),
           Text(
-            '"$missingText \uC790\uB8CC\uAC00 \uC5C6\uC5B4\uC694"',
+            '"$missingText 자료가 없어요"',
             style: AppTypography.textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -484,7 +1069,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                 ),
               ),
               child: Text(
-                '$missingText \uC785\uB825\uD558\uAE30',
+                '$missingText 입력하기',
                 style: AppTypography.textTheme.labelLarge?.copyWith(
                   color: AppColors.primary,
                 ),
@@ -495,4 +1080,11 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
       ),
     );
   }
+}
+
+class _MonthEditEntry {
+  final DateTime month;
+  final TextEditingController controller;
+
+  _MonthEditEntry({required this.month, required this.controller});
 }

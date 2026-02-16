@@ -601,6 +601,52 @@ class BusinessProvider extends ChangeNotifier {
         .fold<int>(0, (sum, s) => sum + s.totalSales);
   }
 
+  /// 현재 반기 입력된 월 수
+  int get vatFilledMonths {
+    final now = DateTime.now();
+    final currentHalfStart = now.month <= 6
+        ? DateTime(now.year, 1, 1)
+        : DateTime(now.year, 7, 1);
+    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
+    return _salesList
+        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
+        .length
+        .clamp(0, monthsInHalf);
+  }
+
+  /// 항상 외삽 없는(scale=1) breakdown — 입력분만 원본 데이터
+  VatBreakdown get vatBreakdownInputOnly {
+    final now = DateTime.now();
+    final currentHalfStart = now.month <= 6
+        ? DateTime(now.year, 1, 1)
+        : DateTime(now.year, 7, 1);
+    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
+
+    final halfSales = _salesList
+        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
+        .toList();
+    final halfExpenses = _expensesList
+        .where((e) => !e.yearMonth.isBefore(currentHalfStart))
+        .toList();
+    final halfDeemed = _deemedPurchases
+        .where((d) => !d.yearMonth.isBefore(currentHalfStart))
+        .toList();
+
+    final filledMonths = halfSales.length.clamp(0, monthsInHalf);
+    final cardCreditUsedThisYear = _getCardCreditUsedThisYear(now);
+
+    return TaxCalculator.computeVatBreakdown(
+      business: _business,
+      salesList: halfSales,
+      expensesList: halfExpenses,
+      deemedPurchases: halfDeemed,
+      filledMonths: filledMonths,
+      totalPeriodMonths: filledMonths <= 0 ? 1 : filledMonths,
+      cardCreditUsedThisYear: cardCreditUsedThisYear,
+      asOf: now,
+    );
+  }
+
   int _vatTotalPeriodMonths(int filledMonths) {
     if (_vatExtrapolationEnabled) return 6;
     if (filledMonths <= 0) return 1;

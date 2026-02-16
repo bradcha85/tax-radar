@@ -111,7 +111,7 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                _ThousandsSeparatorFormatter(),
+                ThousandsSeparatorFormatter(),
               ],
               style: AppTypography.amountSmall,
               decoration: InputDecoration(
@@ -222,7 +222,7 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  _ThousandsSeparatorFormatter(),
+                  ThousandsSeparatorFormatter(),
                 ],
                 style: AppTypography.textTheme.bodyMedium,
                 decoration: InputDecoration(
@@ -370,26 +370,6 @@ class _DependentCheckbox extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ThousandsSeparatorFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) return newValue;
-
-    final digits = newValue.text.replaceAll(',', '');
-    final number = int.tryParse(digits);
-    if (number == null) return oldValue;
-
-    final formatted = Formatters.formatWon(number);
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
