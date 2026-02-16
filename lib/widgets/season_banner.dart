@@ -35,9 +35,15 @@ class SeasonBanner extends StatelessWidget {
         ),
         child: Row(
           children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              size: 18,
+              color: fgColor,
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '⚠️ $taxType 확정 신고 $ddayText',
+                '$taxType 확정 신고 $ddayText',
                 style: AppTypography.textTheme.titleSmall?.copyWith(
                   color: fgColor,
                 ),

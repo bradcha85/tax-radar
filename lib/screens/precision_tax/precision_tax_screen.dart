@@ -250,7 +250,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     final now = DateTime.now();
     final lastYear = now.year - 1;
     final thisYear = now.year;
-    final directYears = <int>{2025, lastYear, thisYear}.toList()..sort();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,24 +273,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 onSelected: (value) => _updateDraft(
                   (draft) => draft.copyWith(taxYear: value as int),
                 ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                key: ValueKey<int>(_draft.taxYear),
-                initialValue: _draft.taxYear,
-                decoration: const InputDecoration(labelText: '직접 선택'),
-                items: directYears
-                    .map(
-                      (year) => DropdownMenuItem<int>(
-                        value: year,
-                        child: Text('$year년'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  _updateDraft((draft) => draft.copyWith(taxYear: value));
-                },
               ),
               const SizedBox(height: 12),
               Text(
@@ -563,43 +544,23 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 ),
               if (_draft.bookkeeping) ...[
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _notionOutlinedButton(
-                      label: '모르겠어요(업종 추정)',
-                      onPressed: () {
-                        final sales = _draft.annualSales.value ?? 0;
-                        final estimated =
-                            (sales * _industryExpenseRatio(businessType))
-                                .round();
-                        _setFieldDirect(
-                          keyName: 'annual_expenses',
-                          field: NumericField(
-                            value: estimated,
-                            status: PrecisionValueStatus.estimatedIndustry,
-                          ),
-                          apply: (draft, field) =>
-                              draft.copyWith(annualExpenses: field),
-                        );
-                      },
-                    ),
-                    _notionOutlinedButton(
-                      label: '0원',
-                      onPressed: () {
-                        _setFieldDirect(
-                          keyName: 'annual_expenses',
-                          field: const NumericField(
-                            value: 0,
-                            status: PrecisionValueStatus.complete,
-                          ),
-                          apply: (draft, field) =>
-                              draft.copyWith(annualExpenses: field),
-                        );
-                      },
-                    ),
-                  ],
+                _notionOutlinedButton(
+                  label: '모르겠어요(업종 추정)',
+                  onPressed: () {
+                    final sales = _draft.annualSales.value ?? 0;
+                    final estimated =
+                        (sales * _industryExpenseRatio(businessType))
+                            .round();
+                    _setFieldDirect(
+                      keyName: 'annual_expenses',
+                      field: NumericField(
+                        value: estimated,
+                        status: PrecisionValueStatus.estimatedIndustry,
+                      ),
+                      apply: (draft, field) =>
+                          draft.copyWith(annualExpenses: field),
+                    );
+                  },
                 ),
               ],
             ],
@@ -710,6 +671,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             _amountField(
               keyName: amountKey,
               value: input.incomeAmount.value,
+              label: '소득금액',
               hint: '$title 소득금액(원)',
               statusLabel: input.incomeAmount.status.label,
               onChanged: (field) {
@@ -719,7 +681,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             ),
             const SizedBox(height: 8),
             _notionOutlinedButton(
-              label: '소득금액 모르겠어요',
+              label: '대략적인 범위 선택',
               onPressed: () async {
                 final selected = await _showIncomeRangePicker(title);
                 if (selected == null) return;
@@ -741,6 +703,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             _amountField(
               keyName: withholdingKey,
               value: input.withholdingTax.value,
+              label: '원천징수세액',
               hint: '$title 원천징수세액(원)',
               statusLabel: input.withholdingTax.status.label,
               onChanged: (field) {
@@ -751,45 +714,22 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               },
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _notionOutlinedButton(
-                  label: '0원',
-                  onPressed: () {
-                    _setFieldDirect(
-                      keyName: withholdingKey,
-                      field: const NumericField(
-                        value: 0,
-                        status: PrecisionValueStatus.complete,
-                      ),
-                      apply: (draft, field) => _applyIncomeUpdate(
-                        draft,
-                        kind,
-                        (old) => old.copyWith(withholdingTax: field),
-                      ),
-                    );
-                  },
-                ),
-                _notionOutlinedButton(
-                  label: '모르겠어요(추정 0)',
-                  onPressed: () {
-                    _setFieldDirect(
-                      keyName: withholdingKey,
-                      field: const NumericField(
-                        value: 0,
-                        status: PrecisionValueStatus.estimatedZero,
-                      ),
-                      apply: (draft, field) => _applyIncomeUpdate(
-                        draft,
-                        kind,
-                        (old) => old.copyWith(withholdingTax: field),
-                      ),
-                    );
-                  },
-                ),
-              ],
+            _notionOutlinedButton(
+              label: '모르겠어요',
+              onPressed: () {
+                _setFieldDirect(
+                  keyName: withholdingKey,
+                  field: const NumericField(
+                    value: 0,
+                    status: PrecisionValueStatus.estimatedZero,
+                  ),
+                  apply: (draft, field) => _applyIncomeUpdate(
+                    draft,
+                    kind,
+                    (old) => old.copyWith(withholdingTax: field),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -821,7 +761,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 options: [
                   _ChipOption('있음', SelectionState.yes),
                   _ChipOption('없음', SelectionState.no),
-                  _ChipOption('모르겠어요', SelectionState.unknown),
                 ],
                 selectedValue: _draft.spouseSelection,
                 onSelected: (value) {
@@ -835,7 +774,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               _amountField(
                 keyName: 'children_count',
                 value: _draft.childrenCount.value,
-                hint: '자녀 수',
+                label: '자녀 수',
+                hint: '자녀 수(명)',
                 statusLabel: _draft.childrenCount.status.label,
                 onChanged: (field) {
                   _updateDraft(
@@ -847,48 +787,14 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               _amountField(
                 keyName: 'parents_count',
                 value: _draft.parentsCount.value,
-                hint: '부모 부양 수',
+                label: '부양 부모 수',
+                hint: '부양 부모 수(명)',
                 statusLabel: _draft.parentsCount.status.label,
                 onChanged: (field) {
                   _updateDraft(
                       (draft) => draft.copyWith(parentsCount: field));
                 },
                 isCount: true,
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _notionOutlinedButton(
-                    label: '자녀 모르겠어요',
-                    onPressed: () {
-                      _setFieldDirect(
-                        keyName: 'children_count',
-                        field: const NumericField(
-                          value: 0,
-                          status: PrecisionValueStatus.estimatedUser,
-                        ),
-                        apply: (draft, field) =>
-                            draft.copyWith(childrenCount: field),
-                      );
-                    },
-                  ),
-                  _notionOutlinedButton(
-                    label: '부모 모르겠어요',
-                    onPressed: () {
-                      _setFieldDirect(
-                        keyName: 'parents_count',
-                        field: const NumericField(
-                          value: 0,
-                          status: PrecisionValueStatus.estimatedUser,
-                        ),
-                        apply: (draft, field) =>
-                            draft.copyWith(parentsCount: field),
-                      );
-                    },
-                  ),
-                ],
               ),
             ],
           ),
@@ -908,7 +814,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 options: [
                   _ChipOption('가입', SelectionState.yes),
                   _ChipOption('미가입', SelectionState.no),
-                  _ChipOption('모르겠어요', SelectionState.unknown),
                 ],
                 selectedValue: _draft.yellowUmbrellaSelection,
                 onSelected: (value) {
@@ -935,7 +840,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 ),
                 const SizedBox(height: 8),
                 _notionOutlinedButton(
-                  label: '모르겠어요(0원)',
+                  label: '모르겠어요',
                   onPressed: () {
                     _setFieldDirect(
                       keyName: 'yellow_annual',
@@ -1011,14 +916,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        if (_draft.hasLaborIncome)
-          _withholdingCard(kind: _IncomeKind.labor, label: '근로 원천징수'),
-        if (_draft.hasPensionIncome)
-          _withholdingCard(kind: _IncomeKind.pension, label: '연금 원천징수'),
-        if (_draft.hasFinancialIncome)
-          _withholdingCard(kind: _IncomeKind.financial, label: '금융 원천징수'),
-        if (_draft.hasOtherIncome)
-          _withholdingCard(kind: _IncomeKind.other, label: '기타 원천징수'),
         _selectionAmountCard(
           title: '중간예납',
           termId: 'T19',
@@ -1270,82 +1167,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
   // Shared card widgets
   // ---------------------------------------------------------------------------
 
-  Widget _withholdingCard(
-      {required _IncomeKind kind, required String label}) {
-    final input = _incomeInput(kind);
-    final keyName = '${kind.name}_withholding';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: NotionCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TermHelpHeader(
-              title: label,
-              termId: 'T18',
-              statusLabel: input.withholdingTax.status.label,
-              onTermViewed: _onTermViewed,
-            ),
-            const SizedBox(height: 12),
-            _amountField(
-              keyName: keyName,
-              value: input.withholdingTax.value,
-              hint: '$label 금액(원)',
-              onChanged: (field) {
-                _updateIncome(
-                  kind,
-                  (old) => old.copyWith(withholdingTax: field),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _notionOutlinedButton(
-                  label: '0원',
-                  onPressed: () {
-                    _setFieldDirect(
-                      keyName: keyName,
-                      field: const NumericField(
-                        value: 0,
-                        status: PrecisionValueStatus.complete,
-                      ),
-                      apply: (draft, field) => _applyIncomeUpdate(
-                        draft,
-                        kind,
-                        (old) => old.copyWith(withholdingTax: field),
-                      ),
-                    );
-                  },
-                ),
-                _notionOutlinedButton(
-                  label: '모르겠어요',
-                  onPressed: () {
-                    _setFieldDirect(
-                      keyName: keyName,
-                      field: const NumericField(
-                        value: 0,
-                        status: PrecisionValueStatus.estimatedZero,
-                      ),
-                      apply: (draft, field) => _applyIncomeUpdate(
-                        draft,
-                        kind,
-                        (old) => old.copyWith(withholdingTax: field),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _selectionAmountCard({
     required String title,
     required String termId,
@@ -1482,42 +1303,55 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     required String hint,
     required ValueChanged<NumericField> onChanged,
     String? statusLabel,
+    String? label,
     bool isCount = false,
   }) {
     final controller = _controllerFor(keyName, value, isCount: isCount);
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        if (!isCount) _ThousandsSeparatorFormatter(),
-      ],
-      onChanged: (text) {
-        final parsed = _parseAmount(text);
-        if (parsed == null) {
-          onChanged(NumericField.missing);
-          return;
-        }
-        onChanged(
-          NumericField(
-            value: parsed,
-            status: PrecisionValueStatus.complete,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              label,
+              style: AppTypography.textTheme.bodyMedium,
+            ),
           ),
-        );
-      },
-      decoration: InputDecoration(
-        hintText: hint,
-        suffixText: isCount ? '명' : '원',
-        // Show status inline as a prefix icon badge
-        prefixIcon: statusLabel != null
-            ? Padding(
-                padding: const EdgeInsets.only(left: 12, right: 4),
-                child: _StatusBadge(label: statusLabel),
-              )
-            : null,
-        prefixIconConstraints:
-            const BoxConstraints(minWidth: 0, minHeight: 0),
-      ),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            if (!isCount) _ThousandsSeparatorFormatter(),
+          ],
+          onChanged: (text) {
+            final parsed = _parseAmount(text);
+            if (parsed == null) {
+              onChanged(NumericField.missing);
+              return;
+            }
+            onChanged(
+              NumericField(
+                value: parsed,
+                status: PrecisionValueStatus.complete,
+              ),
+            );
+          },
+          decoration: InputDecoration(
+            hintText: hint,
+            suffixText: isCount ? '명' : '원',
+            prefixIcon: statusLabel != null
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 4),
+                    child: _StatusBadge(label: statusLabel),
+                  )
+                : null,
+            prefixIconConstraints:
+                const BoxConstraints(minWidth: 0, minHeight: 0),
+          ),
+        ),
+      ],
     );
   }
 

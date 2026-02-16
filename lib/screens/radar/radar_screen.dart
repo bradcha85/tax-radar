@@ -41,25 +41,30 @@ class RadarScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '\uC138\uAE08 \uB808\uC774\uB354',
+                    '세금 레이더',
                     style: AppTypography.textTheme.headlineMedium,
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      // Notification tap - placeholder
-                    },
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.border, width: 1),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          '\u{1F514}',
-                          style: TextStyle(fontSize: 20),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        // Notification tap - placeholder
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.border, width: 1),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.notifications_none_rounded,
+                            size: 22,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ),
@@ -71,58 +76,47 @@ class RadarScreen extends StatelessWidget {
               // Season banners
               if (showVatBanner) ...[
                 SeasonBanner(
-                  taxType: '\uBD80\uAC00\uC138',
+                  taxType: '부가세',
                   deadline: nextVatDeadline,
                   onTap: () => context.push('/data'),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
               ],
               if (showIncomeBanner) ...[
                 SeasonBanner(
-                  taxType: '\uC885\uC18C\uC138',
+                  taxType: '종소세',
                   deadline: nextIncomeDeadline,
                   onTap: () => context.push('/data'),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
               ],
 
               // VAT card
               TaxCard(
-                title: '\uBD80\uAC00\uC138 (${vatPrediction.period})',
+                title: '부가세 (${vatPrediction.period})',
                 prediction: vatPrediction,
                 dday: Formatters.formatDday(nextVatDeadline),
                 onTap: () => context.push('/tax-detail/vat'),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               // Income tax card
               TaxCard(
-                title: '\uC885\uC18C\uC138 (${incomeTaxPrediction.period})',
+                title: '종소세 (${incomeTaxPrediction.period})',
                 prediction: incomeTaxPrediction,
                 dday: Formatters.formatDday(nextIncomeDeadline),
                 onTap: () => context.push('/tax-detail/income_tax'),
               ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => context.push('/precision-tax'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    '\uD83E\uDDEE \uC815\uBC00 \uC885\uC18C\uC138 \uACC4\uC0B0',
-                    style: AppTypography.textTheme.labelLarge?.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 12),
+
+              // Precision tax button
+              _NotionActionButton(
+                icon: Icons.calculate_outlined,
+                label: '정밀 종소세 계산',
+                onTap: () => context.push('/precision-tax'),
+                isPrimary: true,
+              ),
+              const SizedBox(height: 16),
 
               // Accuracy gauge
               AccuracyGauge(
@@ -144,32 +138,17 @@ class RadarScreen extends StatelessWidget {
                   }
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               // Tax calendar
               const TaxCalendarCard(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Simulator button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => context.push('/simulator'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: AppColors.border, width: 1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    backgroundColor: AppColors.surface,
-                  ),
-                  child: Text(
-                    '\u{1F52E} \uC2DC\uBBAC\uB808\uC774\uD130',
-                    style: AppTypography.textTheme.titleSmall?.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
+              _NotionActionButton(
+                icon: Icons.science_outlined,
+                label: '시뮬레이터',
+                onTap: () => context.push('/simulator'),
               ),
               const SizedBox(height: 24),
             ],
@@ -186,5 +165,61 @@ class RadarScreen extends StatelessWidget {
     if (daysSince <= 30) return 67;
     if (daysSince <= 90) return 33;
     return 0;
+  }
+}
+
+class _NotionActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isPrimary;
+
+  const _NotionActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: Material(
+        color: isPrimary ? AppColors.primaryLight : AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isPrimary ? AppColors.primary : AppColors.border,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isPrimary ? AppColors.primary : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: AppTypography.textTheme.labelLarge?.copyWith(
+                    color: isPrimary ? AppColors.primary : AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

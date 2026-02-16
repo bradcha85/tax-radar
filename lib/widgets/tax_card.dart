@@ -41,7 +41,7 @@ class TaxCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: _ddayColor,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   dday,

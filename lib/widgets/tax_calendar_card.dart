@@ -101,7 +101,11 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
           // Title
           Row(
             children: [
-              const Text('📅', style: TextStyle(fontSize: 18)),
+              const Icon(
+                Icons.calendar_today_rounded,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: 8),
               Text('세금 캘린더', style: AppTypography.textTheme.titleMedium),
             ],
@@ -133,22 +137,29 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
     final monthHeader = Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        GestureDetector(
-          onTap: () {
-            setState(() {
-              _displayedMonth = DateTime(
-                _displayedMonth.year,
-                _displayedMonth.month - 1,
-                1,
-              );
-            });
-          },
-          child: const Padding(
-            padding: EdgeInsets.all(4),
-            child: Icon(
-              Icons.chevron_left,
-              size: 20,
-              color: AppColors.textSecondary,
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _displayedMonth = DateTime(
+                  _displayedMonth.year,
+                  _displayedMonth.month - 1,
+                  1,
+                );
+              });
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: const SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Icon(
+                  Icons.chevron_left,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ),
           ),
         ),
@@ -156,22 +167,29 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
           '${_displayedMonth.year}.${_displayedMonth.month.toString().padLeft(2, '0')}',
           style: AppTypography.textTheme.titleSmall,
         ),
-        GestureDetector(
-          onTap: () {
-            setState(() {
-              _displayedMonth = DateTime(
-                _displayedMonth.year,
-                _displayedMonth.month + 1,
-                1,
-              );
-            });
-          },
-          child: const Padding(
-            padding: EdgeInsets.all(4),
-            child: Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: AppColors.textSecondary,
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _displayedMonth = DateTime(
+                  _displayedMonth.year,
+                  _displayedMonth.month + 1,
+                  1,
+                );
+              });
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: const SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ),
           ),
         ),
@@ -376,7 +394,7 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
                             color: isUrgent
                                 ? AppColors.dangerLight
                                 : AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             dday,

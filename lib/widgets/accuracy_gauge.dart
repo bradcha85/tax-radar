@@ -54,24 +54,24 @@ class AccuracyGauge extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           // Sub-items
-          _buildItem('📊', '매출', salesPercent, 'sales'),
-          const SizedBox(height: 10),
-          _buildItem('💳', '지출', expensePercent, 'expense'),
-          const SizedBox(height: 10),
-          _buildItem('🥬', '의제매입', deemedPercent, 'deemed'),
-          const SizedBox(height: 10),
-          _buildItem('📋', '최신성', freshnessPercent, 'freshness'),
+          _buildItem(Icons.trending_up_rounded, '매출', salesPercent, 'sales'),
+          const SizedBox(height: 12),
+          _buildItem(Icons.receipt_long_outlined, '지출', expensePercent, 'expense'),
+          const SizedBox(height: 12),
+          _buildItem(Icons.storefront_outlined, '의제매입', deemedPercent, 'deemed'),
+          const SizedBox(height: 12),
+          _buildItem(Icons.update_rounded, '최신성', freshnessPercent, 'freshness'),
         ],
       ),
     );
   }
 
-  Widget _buildItem(String emoji, String label, int percent, String type) {
+  Widget _buildItem(IconData icon, String label, int percent, String type) {
     final isTappable = percent == 0 && onItemTap != null;
 
     final row = Row(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 16)),
+        Icon(icon, size: 18, color: AppColors.textSecondary),
         const SizedBox(width: 8),
         SizedBox(
           width: 56,
