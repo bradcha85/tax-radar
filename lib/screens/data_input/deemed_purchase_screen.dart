@@ -38,9 +38,11 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
   void _loadExistingData() {
     final provider = context.read<BusinessProvider>();
     final existing = provider.deemedPurchases
-        .where((d) =>
-            d.yearMonth.year == _selectedMonth.year &&
-            d.yearMonth.month == _selectedMonth.month)
+        .where(
+          (d) =>
+              d.yearMonth.year == _selectedMonth.year &&
+              d.yearMonth.month == _selectedMonth.month,
+        )
         .toList();
     if (existing.isNotEmpty) {
       _selectedAmount = existing.first.amount;
@@ -57,9 +59,11 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
       1,
     );
     final existing = provider.deemedPurchases
-        .where((d) =>
-            d.yearMonth.year == prevMonth.year &&
-            d.yearMonth.month == prevMonth.month)
+        .where(
+          (d) =>
+              d.yearMonth.year == prevMonth.year &&
+              d.yearMonth.month == prevMonth.month,
+        )
         .toList();
     return existing.isNotEmpty ? existing.first.amount : null;
   }
@@ -71,7 +75,8 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
     final taxBase = provider.vatBreakdown.taxBase;
 
     final isRestaurant =
-        business.businessType == 'restaurant' || business.businessType == 'cafe';
+        business.businessType == 'restaurant' ||
+        business.businessType == 'cafe';
     if (!isRestaurant) {
       return (amount * 2 / 102).round();
     }
@@ -87,9 +92,9 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
     if (_selectedAmount == null || _selectedAmount == 0) {
       // Allow saving 0
       if (_selectedAmount == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('금액을 선택해 주세요')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('금액을 선택해 주세요')));
         return;
       }
     }
@@ -101,9 +106,9 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
 
     context.read<BusinessProvider>().addDeemedPurchase(purchase);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('저장되었습니다')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('저장되었습니다')));
     context.pop();
   }
 
@@ -111,10 +116,9 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<BusinessProvider>();
     final prevAmount = _getPreviousMonthAmount();
-    final vatSavings =
-        _selectedAmount != null && _selectedAmount! > 0
-            ? _estimateVatSavings(provider, _selectedAmount!)
-            : null;
+    final vatSavings = _selectedAmount != null && _selectedAmount! > 0
+        ? _estimateVatSavings(provider, _selectedAmount!)
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -151,7 +155,8 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final month = _months[index];
-                  final isSelected = month.year == _selectedMonth.year &&
+                  final isSelected =
+                      month.year == _selectedMonth.year &&
                       month.month == _selectedMonth.month;
 
                   return GestureDetector(
@@ -163,7 +168,9 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.primary
@@ -219,8 +226,7 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Text('\u{1F4C9}',
-                        style: TextStyle(fontSize: 20)),
+                    const Text('\u{1F4C9}', style: TextStyle(fontSize: 20)),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(

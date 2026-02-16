@@ -31,10 +31,7 @@ class SeasonBanner extends StatelessWidget {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: fgColor.withValues(alpha: 0.3),
-            width: 1,
-          ),
+          border: Border.all(color: fgColor.withValues(alpha: 0.3), width: 1),
         ),
         child: Row(
           children: [

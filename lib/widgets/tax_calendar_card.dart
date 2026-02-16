@@ -103,10 +103,7 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
             children: [
               const Text('📅', style: TextStyle(fontSize: 18)),
               const SizedBox(width: 8),
-              Text(
-                '세금 캘린더',
-                style: AppTypography.textTheme.titleMedium,
-              ),
+              Text('세금 캘린더', style: AppTypography.textTheme.titleMedium),
             ],
           ),
           const SizedBox(height: 16),
@@ -148,7 +145,11 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
           },
           child: const Padding(
             padding: EdgeInsets.all(4),
-            child: Icon(Icons.chevron_left, size: 20, color: AppColors.textSecondary),
+            child: Icon(
+              Icons.chevron_left,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
         Text(
@@ -167,7 +168,11 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
           },
           child: const Padding(
             padding: EdgeInsets.all(4),
-            child: Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+            child: Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
       ],
@@ -177,27 +182,33 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
     const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
     final weekdayRow = Row(
       children: weekdays
-          .map((d) => Expanded(
-                child: Center(
-                  child: Text(
-                    d,
-                    style: AppTypography.caption.copyWith(
-                      color: d == '일'
-                          ? AppColors.danger
-                          : d == '토'
-                              ? AppColors.primary
-                              : AppColors.textHint,
-                      fontSize: 11,
-                    ),
+          .map(
+            (d) => Expanded(
+              child: Center(
+                child: Text(
+                  d,
+                  style: AppTypography.caption.copyWith(
+                    color: d == '일'
+                        ? AppColors.danger
+                        : d == '토'
+                        ? AppColors.primary
+                        : AppColors.textHint,
+                    fontSize: 11,
                   ),
                 ),
-              ))
+              ),
+            ),
+          )
           .toList(),
     );
 
     // Calendar grid
     final firstDay = DateTime(_displayedMonth.year, _displayedMonth.month, 1);
-    final daysInMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      0,
+    ).day;
     final startWeekday = firstDay.weekday % 7; // 0=Sun
 
     final cells = <Widget>[];
@@ -207,7 +218,8 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
     }
     // Day cells
     for (int day = 1; day <= daysInMonth; day++) {
-      final isToday = now.year == _displayedMonth.year &&
+      final isToday =
+          now.year == _displayedMonth.year &&
           now.month == _displayedMonth.month &&
           now.day == day;
       final hasEvent = eventDays.contains(day);
@@ -221,8 +233,8 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
               color: isToday
                   ? AppColors.primary
                   : hasEvent
-                      ? AppColors.primaryLight
-                      : Colors.transparent,
+                  ? AppColors.primaryLight
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
@@ -233,12 +245,14 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
                     '$day',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isToday || hasEvent ? FontWeight.w600 : FontWeight.w400,
+                      fontWeight: isToday || hasEvent
+                          ? FontWeight.w600
+                          : FontWeight.w400,
                       color: isToday
                           ? Colors.white
                           : hasEvent
-                              ? AppColors.primary
-                              : AppColors.textPrimary,
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
                     ),
                   ),
                   if (hasEvent && !isToday)
@@ -281,10 +295,7 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
     if (events.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          '올해 남은 세금 일정이 없어요',
-          style: AppTypography.caption,
-        ),
+        child: Text('올해 남은 세금 일정이 없어요', style: AppTypography.caption),
       );
     }
 
@@ -345,9 +356,8 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
                             children: [
                               Text(
                                 event.title,
-                                style: AppTypography.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: AppTypography.textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w500),
                               ),
                               const SizedBox(height: 2),
                               Text(

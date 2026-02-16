@@ -64,9 +64,9 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
 
   void _onSave() {
     if (_totalSales <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('매출 금액을 입력해 주세요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('매출 금액을 입력해 주세요')));
       return;
     }
 
@@ -80,9 +80,9 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
 
     context.read<BusinessProvider>().addSales(sales);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('저장되었습니다')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('저장되었습니다')));
     context.pop();
   }
 
@@ -123,7 +123,8 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final month = _months[index];
-                  final isSelected = month.year == _selectedMonth.year &&
+                  final isSelected =
+                      month.year == _selectedMonth.year &&
                       month.month == _selectedMonth.month;
                   final hasData = _monthHasData(month);
 
@@ -135,7 +136,9 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.primary
@@ -152,8 +155,7 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
                         children: [
                           Text(
                             Formatters.formatMonth(month),
-                            style:
-                                AppTypography.textTheme.bodySmall?.copyWith(
+                            style: AppTypography.textTheme.bodySmall?.copyWith(
                               color: isSelected
                                   ? AppColors.textOnPrimary
                                   : AppColors.textPrimary,
@@ -201,8 +203,10 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
                 hintStyle: AppTypography.hint.copyWith(fontSize: 16),
                 suffixText: '원',
                 suffixStyle: AppTypography.textTheme.bodyMedium,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppColors.border),
@@ -255,8 +259,7 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
 
             // Breakdown
             if (_totalSales > 0) ...[
-              Text('매출 내역 (자동 계산)',
-                  style: AppTypography.textTheme.titleSmall),
+              Text('매출 내역 (자동 계산)', style: AppTypography.textTheme.titleSmall),
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -268,17 +271,11 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
                 ),
                 child: Column(
                   children: [
-                    _BreakdownRow(
-                        label: '카드매출',
-                        amount: _cardSales),
+                    _BreakdownRow(label: '카드매출', amount: _cardSales),
                     const Divider(height: 20, color: AppColors.borderLight),
-                    _BreakdownRow(
-                        label: '현금영수증',
-                        amount: _cashReceiptSales),
+                    _BreakdownRow(label: '현금영수증', amount: _cashReceiptSales),
                     const Divider(height: 20, color: AppColors.borderLight),
-                    _BreakdownRow(
-                        label: '기타현금',
-                        amount: _otherCashSales),
+                    _BreakdownRow(label: '기타현금', amount: _otherCashSales),
                   ],
                 ),
               ),

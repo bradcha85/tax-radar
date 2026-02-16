@@ -24,10 +24,12 @@ class RangeBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalRange = absoluteMax - absoluteMin;
-    final startFraction =
-        totalRange > 0 ? (minValue - absoluteMin) / totalRange : 0.0;
-    final endFraction =
-        totalRange > 0 ? (maxValue - absoluteMin) / totalRange : 0.0;
+    final startFraction = totalRange > 0
+        ? (minValue - absoluteMin) / totalRange
+        : 0.0;
+    final endFraction = totalRange > 0
+        ? (maxValue - absoluteMin) / totalRange
+        : 0.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,7 +56,10 @@ class RangeBar extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.easeInOut,
-                      width: filledWidth.clamp(0, barWidth - left.clamp(0, barWidth)),
+                      width: filledWidth.clamp(
+                        0,
+                        barWidth - left.clamp(0, barWidth),
+                      ),
                       height: height,
                       decoration: BoxDecoration(
                         color: color,

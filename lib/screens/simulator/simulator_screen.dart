@@ -107,16 +107,14 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('-500\uB9CC',
-                          style: AppTypography.caption),
+                      Text('-500\uB9CC', style: AppTypography.caption),
                       Text(
                         '\uD604\uC7AC: ${_formatDelta(_salesDelta.round())}',
                         style: AppTypography.textTheme.labelMedium?.copyWith(
                           color: AppColors.primary,
                         ),
                       ),
-                      Text('+500\uB9CC',
-                          style: AppTypography.caption),
+                      Text('+500\uB9CC', style: AppTypography.caption),
                     ],
                   ),
                 ],
@@ -153,16 +151,14 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('-300\uB9CC',
-                          style: AppTypography.caption),
+                      Text('-300\uB9CC', style: AppTypography.caption),
                       Text(
                         '\uD604\uC7AC: ${_formatDelta(_expenseDelta.round())}',
                         style: AppTypography.textTheme.labelMedium?.copyWith(
                           color: AppColors.primary,
                         ),
                       ),
-                      Text('+300\uB9CC',
-                          style: AppTypography.caption),
+                      Text('+300\uB9CC', style: AppTypography.caption),
                     ],
                   ),
                 ],
@@ -195,9 +191,15 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _diffRow('\uBD80\uAC00\uC138', (vatDiffMin + vatDiffMax) ~/ 2),
+                  _diffRow(
+                    '\uBD80\uAC00\uC138',
+                    (vatDiffMin + vatDiffMax) ~/ 2,
+                  ),
                   const SizedBox(height: 4),
-                  _diffRow('\uC885\uC18C\uC138', (incomeDiffMin + incomeDiffMax) ~/ 2),
+                  _diffRow(
+                    '\uC885\uC18C\uC138',
+                    (incomeDiffMin + incomeDiffMax) ~/ 2,
+                  ),
                 ],
               ),
             ),
@@ -277,23 +279,32 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
     // Apply delta to each month's sales
     final modifiedSales = provider.salesList
         .where((s) => !s.yearMonth.isBefore(currentHalfStart))
-        .map((s) => MonthlySales(
-              yearMonth: s.yearMonth,
-              totalSales: (s.totalSales + salesDeltaInt).clamp(0, s.totalSales * 10),
-              cardSales: s.cardSales,
-              cashReceiptSales: s.cashReceiptSales,
-              otherCashSales: s.otherCashSales,
-            ))
+        .map(
+          (s) => MonthlySales(
+            yearMonth: s.yearMonth,
+            totalSales: (s.totalSales + salesDeltaInt).clamp(
+              0,
+              s.totalSales * 10,
+            ),
+            cardSales: s.cardSales,
+            cashReceiptSales: s.cashReceiptSales,
+            otherCashSales: s.otherCashSales,
+          ),
+        )
         .toList();
 
     final modifiedExpenses = provider.expensesList
         .where((e) => !e.yearMonth.isBefore(currentHalfStart))
-        .map((e) => MonthlyExpenses(
-              yearMonth: e.yearMonth,
-              totalExpenses:
-                  (e.totalExpenses + expenseDeltaInt).clamp(0, e.totalExpenses * 10),
-              taxableExpenses: e.taxableExpenses,
-            ))
+        .map(
+          (e) => MonthlyExpenses(
+            yearMonth: e.yearMonth,
+            totalExpenses: (e.totalExpenses + expenseDeltaInt).clamp(
+              0,
+              e.totalExpenses * 10,
+            ),
+            taxableExpenses: e.taxableExpenses,
+          ),
+        )
         .toList();
 
     final halfDeemed = provider.deemedPurchases
@@ -321,23 +332,32 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
 
     final modifiedSales = provider.salesList
         .where((s) => !s.yearMonth.isBefore(yearStart))
-        .map((s) => MonthlySales(
-              yearMonth: s.yearMonth,
-              totalSales: (s.totalSales + salesDeltaInt).clamp(0, s.totalSales * 10),
-              cardSales: s.cardSales,
-              cashReceiptSales: s.cashReceiptSales,
-              otherCashSales: s.otherCashSales,
-            ))
+        .map(
+          (s) => MonthlySales(
+            yearMonth: s.yearMonth,
+            totalSales: (s.totalSales + salesDeltaInt).clamp(
+              0,
+              s.totalSales * 10,
+            ),
+            cardSales: s.cardSales,
+            cashReceiptSales: s.cashReceiptSales,
+            otherCashSales: s.otherCashSales,
+          ),
+        )
         .toList();
 
     final modifiedExpenses = provider.expensesList
         .where((e) => !e.yearMonth.isBefore(yearStart))
-        .map((e) => MonthlyExpenses(
-              yearMonth: e.yearMonth,
-              totalExpenses:
-                  (e.totalExpenses + expenseDeltaInt).clamp(0, e.totalExpenses * 10),
-              taxableExpenses: e.taxableExpenses,
-            ))
+        .map(
+          (e) => MonthlyExpenses(
+            yearMonth: e.yearMonth,
+            totalExpenses: (e.totalExpenses + expenseDeltaInt).clamp(
+              0,
+              e.totalExpenses * 10,
+            ),
+            taxableExpenses: e.taxableExpenses,
+          ),
+        )
         .toList();
 
     return TaxCalculator.calculateIncomeTax(

@@ -15,9 +15,10 @@ class MonthlyExpenses {
     'taxableExpenses': taxableExpenses,
   };
 
-  factory MonthlyExpenses.fromJson(Map<String, dynamic> json) => MonthlyExpenses(
-    yearMonth: DateTime.parse(json['yearMonth'] as String),
-    totalExpenses: json['totalExpenses'] as int? ?? 0,
-    taxableExpenses: json['taxableExpenses'] as int?,
-  );
+  factory MonthlyExpenses.fromJson(Map<String, dynamic> json) =>
+      MonthlyExpenses(
+        yearMonth: DateTime.parse(json['yearMonth'] as String),
+        totalExpenses: json['totalExpenses'] as int? ?? 0,
+        taxableExpenses: json['taxableExpenses'] as int?,
+      );
 }

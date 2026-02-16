@@ -8,6 +8,7 @@ import '../models/tax_prediction.dart';
 import '../models/user_profile.dart';
 import '../models/vat_breakdown.dart';
 import '../models/income_tax_breakdown.dart';
+import '../models/precision_tax.dart';
 import '../utils/tax_calculator.dart';
 import '../utils/formatters.dart';
 
@@ -29,13 +30,28 @@ class BusinessProvider extends ChangeNotifier {
   List<MonthlyExpenses> get expensesList => List.unmodifiable(_expensesList);
 
   final List<DeemedPurchase> _deemedPurchases = [];
-  List<DeemedPurchase> get deemedPurchases => List.unmodifiable(_deemedPurchases);
+  List<DeemedPurchase> get deemedPurchases =>
+      List.unmodifiable(_deemedPurchases);
 
   bool _onboardingComplete = false;
   bool get onboardingComplete => _onboardingComplete;
 
   DateTime? _lastUpdate;
   DateTime? get lastUpdate => _lastUpdate;
+
+  PrecisionTaxDraft _precisionTaxDraft = PrecisionTaxDraft.initial(
+    now: DateTime.now(),
+  );
+  PrecisionTaxDraft get precisionTaxDraft => _precisionTaxDraft;
+
+  final Set<String> _favoriteGlossaryIds = <String>{};
+  Set<String> get favoriteGlossaryIds => Set.unmodifiable(_favoriteGlossaryIds);
+
+  final List<String> _recentGlossaryIds = <String>[];
+  List<String> get recentGlossaryIds => List.unmodifiable(_recentGlossaryIds);
+
+  bool _vatExtrapolationEnabled = true;
+  bool get vatExtrapolationEnabled => _vatExtrapolationEnabled;
 
   late Box _box;
 
@@ -73,7 +89,9 @@ class BusinessProvider extends ChangeNotifier {
     if (expensesJsonList != null) {
       _expensesList.clear();
       for (final item in expensesJsonList) {
-        _expensesList.add(MonthlyExpenses.fromJson(Map<String, dynamic>.from(item)));
+        _expensesList.add(
+          MonthlyExpenses.fromJson(Map<String, dynamic>.from(item)),
+        );
       }
       _expensesList.sort((a, b) => a.yearMonth.compareTo(b.yearMonth));
     }
@@ -83,7 +101,9 @@ class BusinessProvider extends ChangeNotifier {
     if (deemedJsonList != null) {
       _deemedPurchases.clear();
       for (final item in deemedJsonList) {
-        _deemedPurchases.add(DeemedPurchase.fromJson(Map<String, dynamic>.from(item)));
+        _deemedPurchases.add(
+          DeemedPurchase.fromJson(Map<String, dynamic>.from(item)),
+        );
       }
       _deemedPurchases.sort((a, b) => a.yearMonth.compareTo(b.yearMonth));
     }
@@ -96,6 +116,40 @@ class BusinessProvider extends ChangeNotifier {
       _lastUpdate = DateTime.tryParse(lastUpdateStr);
     }
 
+    final precisionDraftJson = _box.get('precisionTaxDraft');
+    if (precisionDraftJson is Map) {
+      _precisionTaxDraft = PrecisionTaxDraft.fromJson(
+        Map<String, dynamic>.from(precisionDraftJson),
+      );
+    } else {
+      _precisionTaxDraft = PrecisionTaxDraft.initial(now: DateTime.now());
+    }
+
+    final favoriteGlossaryIds = _box.get('favoriteGlossaryIds');
+    _favoriteGlossaryIds.clear();
+    if (favoriteGlossaryIds is List) {
+      _favoriteGlossaryIds.addAll(
+        favoriteGlossaryIds.whereType<String>().where(
+          (item) => item.trim().isNotEmpty,
+        ),
+      );
+    }
+
+    final recentGlossaryIds = _box.get('recentGlossaryIds');
+    _recentGlossaryIds.clear();
+    if (recentGlossaryIds is List) {
+      _recentGlossaryIds.addAll(
+        recentGlossaryIds.whereType<String>().where(
+          (item) => item.trim().isNotEmpty,
+        ),
+      );
+    }
+
+    _vatExtrapolationEnabled = _box.get(
+      'vatExtrapolationEnabled',
+      defaultValue: true,
+    );
+
     notifyListeners();
   }
 
@@ -104,8 +158,15 @@ class BusinessProvider extends ChangeNotifier {
     _box.put('profile', _profile.toJson());
     _box.put('salesList', _salesList.map((s) => s.toJson()).toList());
     _box.put('expensesList', _expensesList.map((e) => e.toJson()).toList());
-    _box.put('deemedPurchases', _deemedPurchases.map((d) => d.toJson()).toList());
+    _box.put(
+      'deemedPurchases',
+      _deemedPurchases.map((d) => d.toJson()).toList(),
+    );
     _box.put('onboardingComplete', _onboardingComplete);
+    _box.put('precisionTaxDraft', _precisionTaxDraft.toJson());
+    _box.put('favoriteGlossaryIds', _favoriteGlossaryIds.toList());
+    _box.put('recentGlossaryIds', _recentGlossaryIds);
+    _box.put('vatExtrapolationEnabled', _vatExtrapolationEnabled);
     if (_lastUpdate != null) {
       _box.put('lastUpdate', _lastUpdate!.toIso8601String());
     }
@@ -230,6 +291,86 @@ class BusinessProvider extends ChangeNotifier {
   }
 
   // ============================================================
+  // Precision Tax + Glossary
+  // ============================================================
+
+  void updatePrecisionTaxDraft(PrecisionTaxDraft draft) {
+    _precisionTaxDraft = draft;
+    _lastUpdate = DateTime.now();
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  void resetPrecisionTaxDraft() {
+    _precisionTaxDraft = PrecisionTaxDraft.initial(now: DateTime.now());
+    _lastUpdate = DateTime.now();
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  int get precisionWizardCompletionPercent {
+    final draft = _precisionTaxDraft;
+    final hasSales = draft.businessInputMode == BusinessInputMode.annual
+        ? draft.annualSales.hasValue
+        : draft.monthlyBusinessInputs.any((item) => item.sales.hasValue);
+    final hasExpense = draft.bookkeeping
+        ? (draft.businessInputMode == BusinessInputMode.annual
+              ? draft.annualExpenses.hasValue
+              : draft.monthlyBusinessInputs.any(
+                  (item) => item.expenses.hasValue,
+                ))
+        : true;
+    final hasPrepaymentEvidence =
+        draft.midtermPrepaymentSelection != SelectionState.unset ||
+        draft.otherPrepaymentSelection != SelectionState.unset ||
+        (draft.hasLaborIncome &&
+            draft.laborIncome.withholdingTax.status !=
+                PrecisionValueStatus.missing) ||
+        (draft.hasPensionIncome &&
+            draft.pensionIncome.withholdingTax.status !=
+                PrecisionValueStatus.missing) ||
+        (draft.hasFinancialIncome &&
+            draft.financialIncome.withholdingTax.status !=
+                PrecisionValueStatus.missing) ||
+        (draft.hasOtherIncome &&
+            draft.otherIncome.withholdingTax.status !=
+                PrecisionValueStatus.missing);
+
+    int score = 0;
+    if (hasSales) score += 40;
+    if (hasExpense) score += 30;
+    if (hasPrepaymentEvidence) score += 30;
+    return score.clamp(0, 100);
+  }
+
+  void toggleFavoriteGlossary(String termId) {
+    if (_favoriteGlossaryIds.contains(termId)) {
+      _favoriteGlossaryIds.remove(termId);
+    } else {
+      _favoriteGlossaryIds.add(termId);
+    }
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  void markRecentGlossary(String termId) {
+    _recentGlossaryIds.remove(termId);
+    _recentGlossaryIds.insert(0, termId);
+    if (_recentGlossaryIds.length > 20) {
+      _recentGlossaryIds.removeRange(20, _recentGlossaryIds.length);
+    }
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  void setVatExtrapolationEnabled(bool enabled) {
+    if (_vatExtrapolationEnabled == enabled) return;
+    _vatExtrapolationEnabled = enabled;
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  // ============================================================
   // Computed Values
   // ============================================================
 
@@ -282,7 +423,9 @@ class BusinessProvider extends ChangeNotifier {
   int get historyCompletionPercent {
     int score = 0;
     if (_profile.previousVatAmount != null) score += 50;
-    if (_profile.hasSpouse || _profile.childrenCount > 0 || _profile.supportsParents) {
+    if (_profile.hasSpouse ||
+        _profile.childrenCount > 0 ||
+        _profile.supportsParents) {
       score += 50;
     }
     return score.clamp(0, 100);
@@ -297,8 +440,9 @@ class BusinessProvider extends ChangeNotifier {
         : DateTime(now.year, 7, 1);
     final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
 
-    final halfSales =
-        _salesList.where((s) => !s.yearMonth.isBefore(currentHalfStart)).toList();
+    final halfSales = _salesList
+        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
+        .toList();
     final halfExpenses = _expensesList
         .where((e) => !e.yearMonth.isBefore(currentHalfStart))
         .toList();
@@ -306,6 +450,7 @@ class BusinessProvider extends ChangeNotifier {
         .where((d) => !d.yearMonth.isBefore(currentHalfStart))
         .toList();
 
+    final filledMonths = halfSales.length.clamp(0, monthsInHalf);
     final cardCreditUsedThisYear = _getCardCreditUsedThisYear(now);
 
     return TaxCalculator.calculateVat(
@@ -315,8 +460,8 @@ class BusinessProvider extends ChangeNotifier {
       deemedPurchases: halfDeemed,
       accuracyScore: accuracyScore,
       period: period,
-      filledMonths: halfSales.length.clamp(0, monthsInHalf),
-      totalPeriodMonths: 6,
+      filledMonths: filledMonths,
+      totalPeriodMonths: _vatTotalPeriodMonths(filledMonths),
       cardCreditUsedThisYear: cardCreditUsedThisYear,
       asOf: now,
     );
@@ -329,8 +474,9 @@ class BusinessProvider extends ChangeNotifier {
         : DateTime(now.year, 7, 1);
     final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
 
-    final halfSales =
-        _salesList.where((s) => !s.yearMonth.isBefore(currentHalfStart)).toList();
+    final halfSales = _salesList
+        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
+        .toList();
     final halfExpenses = _expensesList
         .where((e) => !e.yearMonth.isBefore(currentHalfStart))
         .toList();
@@ -338,6 +484,7 @@ class BusinessProvider extends ChangeNotifier {
         .where((d) => !d.yearMonth.isBefore(currentHalfStart))
         .toList();
 
+    final filledMonths = halfSales.length.clamp(0, monthsInHalf);
     final cardCreditUsedThisYear = _getCardCreditUsedThisYear(now);
 
     return TaxCalculator.computeVatBreakdown(
@@ -345,8 +492,8 @@ class BusinessProvider extends ChangeNotifier {
       salesList: halfSales,
       expensesList: halfExpenses,
       deemedPurchases: halfDeemed,
-      filledMonths: halfSales.length.clamp(0, monthsInHalf),
-      totalPeriodMonths: 6,
+      filledMonths: filledMonths,
+      totalPeriodMonths: _vatTotalPeriodMonths(filledMonths),
       cardCreditUsedThisYear: cardCreditUsedThisYear,
       asOf: now,
     );
@@ -358,8 +505,9 @@ class BusinessProvider extends ChangeNotifier {
     final period = Formatters.getIncomeTaxPeriod(now);
     final yearStart = DateTime(now.year, 1, 1);
 
-    final yearSales =
-        _salesList.where((s) => !s.yearMonth.isBefore(yearStart)).toList();
+    final yearSales = _salesList
+        .where((s) => !s.yearMonth.isBefore(yearStart))
+        .toList();
     final yearExpenses = _expensesList
         .where((e) => !e.yearMonth.isBefore(yearStart))
         .toList();
@@ -380,8 +528,9 @@ class BusinessProvider extends ChangeNotifier {
     final now = DateTime.now();
     final yearStart = DateTime(now.year, 1, 1);
 
-    final yearSales =
-        _salesList.where((s) => !s.yearMonth.isBefore(yearStart)).toList();
+    final yearSales = _salesList
+        .where((s) => !s.yearMonth.isBefore(yearStart))
+        .toList();
     final yearExpenses = _expensesList
         .where((e) => !e.yearMonth.isBefore(yearStart))
         .toList();
@@ -404,19 +553,25 @@ class BusinessProvider extends ChangeNotifier {
     final secondHalfStart = DateTime(now.year, 7, 1);
 
     final firstHalfSales = _salesList
-        .where((s) =>
-            !s.yearMonth.isBefore(firstHalfStart) &&
-            s.yearMonth.isBefore(secondHalfStart))
+        .where(
+          (s) =>
+              !s.yearMonth.isBefore(firstHalfStart) &&
+              s.yearMonth.isBefore(secondHalfStart),
+        )
         .toList();
     final firstHalfExpenses = _expensesList
-        .where((e) =>
-            !e.yearMonth.isBefore(firstHalfStart) &&
-            e.yearMonth.isBefore(secondHalfStart))
+        .where(
+          (e) =>
+              !e.yearMonth.isBefore(firstHalfStart) &&
+              e.yearMonth.isBefore(secondHalfStart),
+        )
         .toList();
     final firstHalfDeemed = _deemedPurchases
-        .where((d) =>
-            !d.yearMonth.isBefore(firstHalfStart) &&
-            d.yearMonth.isBefore(secondHalfStart))
+        .where(
+          (d) =>
+              !d.yearMonth.isBefore(firstHalfStart) &&
+              d.yearMonth.isBefore(secondHalfStart),
+        )
         .toList();
 
     final firstHalfBreakdown = TaxCalculator.computeVatBreakdown(
@@ -425,7 +580,9 @@ class BusinessProvider extends ChangeNotifier {
       expensesList: firstHalfExpenses,
       deemedPurchases: firstHalfDeemed,
       filledMonths: firstHalfSales.length.clamp(0, 6),
-      totalPeriodMonths: 6,
+      totalPeriodMonths: _vatTotalPeriodMonths(
+        firstHalfSales.length.clamp(0, 6),
+      ),
       cardCreditUsedThisYear: 0,
       asOf: now,
     );
@@ -442,5 +599,11 @@ class BusinessProvider extends ChangeNotifier {
     return _salesList
         .where((s) => !s.yearMonth.isBefore(currentHalfStart))
         .fold<int>(0, (sum, s) => sum + s.totalSales);
+  }
+
+  int _vatTotalPeriodMonths(int filledMonths) {
+    if (_vatExtrapolationEnabled) return 6;
+    if (filledMonths <= 0) return 1;
+    return filledMonths.clamp(1, 6);
   }
 }

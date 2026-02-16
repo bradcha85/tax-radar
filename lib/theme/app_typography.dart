@@ -48,11 +48,9 @@ class AppTypography {
   static TextStyle get amountMedium => _style(22, FontWeight.w700);
   static TextStyle get amountSmall => _style(16, FontWeight.w600);
 
-  static TextStyle get hint => _style(12, FontWeight.w400).copyWith(
-        color: AppColors.textHint,
-      );
+  static TextStyle get hint =>
+      _style(12, FontWeight.w400).copyWith(color: AppColors.textHint);
 
-  static TextStyle get caption => _style(12, FontWeight.w400).copyWith(
-        color: AppColors.textSecondary,
-      );
+  static TextStyle get caption =>
+      _style(12, FontWeight.w400).copyWith(color: AppColors.textSecondary);
 }

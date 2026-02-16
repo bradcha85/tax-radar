@@ -12,9 +12,6 @@ void main() async {
   await provider.init();
 
   runApp(
-    ChangeNotifierProvider.value(
-      value: provider,
-      child: const TaxRadarApp(),
-    ),
+    ChangeNotifierProvider.value(value: provider, child: const TaxRadarApp()),
   );
 }

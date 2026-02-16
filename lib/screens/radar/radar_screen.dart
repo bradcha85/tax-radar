@@ -57,7 +57,10 @@ class RadarScreen extends StatelessWidget {
                         border: Border.all(color: AppColors.border, width: 1),
                       ),
                       child: const Center(
-                        child: Text('\u{1F514}', style: TextStyle(fontSize: 20)),
+                        child: Text(
+                          '\u{1F514}',
+                          style: TextStyle(fontSize: 20),
+                        ),
                       ),
                     ),
                   ),
@@ -98,6 +101,26 @@ class RadarScreen extends StatelessWidget {
                 prediction: incomeTaxPrediction,
                 dday: Formatters.formatDday(nextIncomeDeadline),
                 onTap: () => context.push('/tax-detail/income_tax'),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => context.push('/precision-tax'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    '\uD83E\uDDEE \uC815\uBC00 \uC885\uC18C\uC138 \uACC4\uC0B0',
+                    style: AppTypography.textTheme.labelLarge?.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
 

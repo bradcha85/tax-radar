@@ -64,7 +64,9 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -82,7 +84,9 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: widget.selectedAmount == widget.referenceAmount
                             ? AppColors.primary
@@ -93,10 +97,9 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
                       child: Text(
                         '그대로 쓰기',
                         style: AppTypography.textTheme.bodySmall?.copyWith(
-                          color:
-                              widget.selectedAmount == widget.referenceAmount
-                                  ? AppColors.textOnPrimary
-                                  : AppColors.primary,
+                          color: widget.selectedAmount == widget.referenceAmount
+                              ? AppColors.textOnPrimary
+                              : AppColors.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -112,8 +115,11 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
           runSpacing: 8,
           children: [
             ...widget.presets.map((amount) {
-              final isSelected = widget.selectedAmount == amount && !_showTextField;
-              final displayText = amount == 0 ? '0' : Formatters.toManWon(amount);
+              final isSelected =
+                  widget.selectedAmount == amount && !_showTextField;
+              final displayText = amount == 0
+                  ? '0'
+                  : Formatters.toManWon(amount);
 
               return GestureDetector(
                 onTap: () {
@@ -122,15 +128,17 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color:
-                        isSelected ? AppColors.primaryLight : AppColors.surface,
+                    color: isSelected
+                        ? AppColors.primaryLight
+                        : AppColors.surface,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color:
-                          isSelected ? AppColors.primary : AppColors.border,
+                      color: isSelected ? AppColors.primary : AppColors.border,
                     ),
                   ),
                   child: Text(
@@ -139,8 +147,9 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
                       color: isSelected
                           ? AppColors.primary
                           : AppColors.textPrimary,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
                     ),
                   ),
                 ),
@@ -156,8 +165,10 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: _isCustomSelected || _showTextField
                         ? AppColors.primaryLight
@@ -196,8 +207,10 @@ class _PresetAmountPickerState extends State<PresetAmountPicker> {
               hintText: '금액 입력 (만원)',
               hintStyle: AppTypography.hint,
               suffixText: '만원',
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppColors.border),

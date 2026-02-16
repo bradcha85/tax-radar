@@ -26,10 +26,7 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          '첫 매출 입력',
-          style: AppTypography.textTheme.titleLarge,
-        ),
+        title: Text('첫 매출 입력', style: AppTypography.textTheme.titleLarge),
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -39,10 +36,7 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: AppColors.border,
-            height: 1,
-          ),
+          child: Container(color: AppColors.border, height: 1),
         ),
       ),
       body: Column(
@@ -65,8 +59,10 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
                     padding: const EdgeInsets.all(20),
                     child: Row(
                       children: [
-                        const Text('\u{270F}\u{FE0F}',
-                            style: TextStyle(fontSize: 24)),
+                        const Text(
+                          '\u{270F}\u{FE0F}',
+                          style: TextStyle(fontSize: 24),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -79,10 +75,8 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 '정확하지 않아도 괜찮아요',
-                                style:
-                                    AppTypography.textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
+                                style: AppTypography.textTheme.bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary),
                               ),
                             ],
                           ),
@@ -113,18 +107,16 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Text(
-                          '50%',
-                          style: AppTypography.caption,
-                        ),
+                        Text('50%', style: AppTypography.caption),
                         Expanded(
                           child: SliderTheme(
                             data: SliderThemeData(
                               activeTrackColor: AppColors.primary,
                               inactiveTrackColor: AppColors.borderLight,
                               thumbColor: AppColors.primary,
-                              overlayColor:
-                                  AppColors.primary.withValues(alpha: 0.1),
+                              overlayColor: AppColors.primary.withValues(
+                                alpha: 0.1,
+                              ),
                               trackHeight: 4,
                             ),
                             child: Slider(
@@ -138,10 +130,7 @@ class _FirstSalesScreenState extends State<FirstSalesScreen> {
                             ),
                           ),
                         ),
-                        Text(
-                          '95%',
-                          style: AppTypography.caption,
-                        ),
+                        Text('95%', style: AppTypography.caption),
                       ],
                     ),
                     Center(

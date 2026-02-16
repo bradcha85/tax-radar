@@ -40,15 +40,9 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              '세금 레이더',
-              style: AppTypography.textTheme.displayLarge,
-            ),
+            Text('세금 레이더', style: AppTypography.textTheme.displayLarge),
             const SizedBox(height: 8),
-            const Text(
-              '\u{1F4E1}',
-              style: TextStyle(fontSize: 48),
-            ),
+            const Text('\u{1F4E1}', style: TextStyle(fontSize: 48)),
             const SizedBox(height: 40),
             const SizedBox(
               width: 24,

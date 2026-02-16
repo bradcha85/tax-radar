@@ -48,9 +48,9 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
 
   void _onSave() {
     if (_totalExpenses <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('지출 금액을 입력해 주세요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('지출 금액을 입력해 주세요')));
       return;
     }
 
@@ -62,9 +62,9 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
 
     context.read<BusinessProvider>().addExpenses(expenses);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('저장되었습니다')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('저장되었습니다')));
     context.pop();
   }
 
@@ -105,7 +105,8 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final month = _months[index];
-                  final isSelected = month.year == _selectedMonth.year &&
+                  final isSelected =
+                      month.year == _selectedMonth.year &&
                       month.month == _selectedMonth.month;
 
                   return GestureDetector(
@@ -113,7 +114,9 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.primary
@@ -158,8 +161,10 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
                 hintStyle: AppTypography.hint.copyWith(fontSize: 16),
                 suffixText: '원',
                 suffixStyle: AppTypography.textTheme.bodyMedium,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppColors.border),
@@ -179,28 +184,13 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
             // Taxable ratio
             Text('과세 매입 비율', style: AppTypography.textTheme.titleSmall),
             const SizedBox(height: 4),
-            Text(
-              '부가세 붙는 지출이 대부분인가요?',
-              style: AppTypography.caption,
-            ),
+            Text('부가세 붙는 지출이 대부분인가요?', style: AppTypography.caption),
             const SizedBox(height: 12),
             ChipSelector(
               options: const [
-                ChipOption(
-                  label: '대부분 붙음',
-                  value: '90',
-                  description: '90%',
-                ),
-                ChipOption(
-                  label: '반반',
-                  value: '50',
-                  description: '50%',
-                ),
-                ChipOption(
-                  label: '거의 안 붙음',
-                  value: '10',
-                  description: '10%',
-                ),
+                ChipOption(label: '대부분 붙음', value: '90', description: '90%'),
+                ChipOption(label: '반반', value: '50', description: '50%'),
+                ChipOption(label: '거의 안 붙음', value: '10', description: '10%'),
               ],
               selectedValue: _taxableRatio,
               onSelected: (v) => setState(() => _taxableRatio = v),
@@ -220,10 +210,7 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '과세 매입액',
-                      style: AppTypography.textTheme.bodyMedium,
-                    ),
+                    Text('과세 매입액', style: AppTypography.textTheme.bodyMedium),
                     Text(
                       Formatters.toManWonWithUnit(_taxableExpenses),
                       style: AppTypography.textTheme.titleSmall?.copyWith(

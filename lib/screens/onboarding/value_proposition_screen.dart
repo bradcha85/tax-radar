@@ -39,10 +39,7 @@ class ValuePropositionScreen extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        '\u{1F4E1}',
-                        style: TextStyle(fontSize: 80),
-                      ),
+                      const Text('\u{1F4E1}', style: TextStyle(fontSize: 80)),
                       const SizedBox(height: 32),
                       Text(
                         '세금, 미리 알면\n무섭지 않아요',

@@ -8,20 +8,32 @@ import '../../utils/formatters.dart';
 import '../../widgets/range_bar.dart';
 import '../../widgets/notion_card.dart';
 
-class TaxDetailScreen extends StatelessWidget {
+class TaxDetailScreen extends StatefulWidget {
   final String taxType;
 
   const TaxDetailScreen({super.key, required this.taxType});
 
-  bool get isVat => taxType == 'vat';
+  @override
+  State<TaxDetailScreen> createState() => _TaxDetailScreenState();
+}
+
+class _TaxDetailScreenState extends State<TaxDetailScreen> {
+  bool get isVat => widget.taxType == 'vat';
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<BusinessProvider>();
-    final prediction =
-        isVat ? provider.vatPrediction : provider.incomeTaxPrediction;
+    final prediction = isVat
+        ? provider.vatPrediction
+        : provider.incomeTaxPrediction;
+    final isVatEstimated =
+        isVat &&
+        provider.vatExtrapolationEnabled &&
+        provider.salesCompletionPercent < 100;
 
-    final title = isVat ? '\uBD80\uAC00\uC138 \uC0C1\uC138' : '\uC885\uC18C\uC138 \uC0C1\uC138';
+    final title = isVat
+        ? '\uBD80\uAC00\uC138 \uC0C1\uC138'
+        : '\uC885\uC18C\uC138 \uC0C1\uC138';
     final subtitle = prediction.period;
 
     return Scaffold(
@@ -34,10 +46,7 @@ class TaxDetailScreen extends StatelessWidget {
         scrolledUnderElevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: AppColors.border,
-            height: 1,
-          ),
+          child: Container(color: AppColors.border, height: 1),
         ),
       ),
       body: SingleChildScrollView(
@@ -56,6 +65,26 @@ class TaxDetailScreen extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  if (isVatEstimated) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningLight,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '추정 포함',
+                        style: AppTypography.textTheme.labelSmall?.copyWith(
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text(
                     '${Formatters.toManWon(prediction.predictedMin)} ~ ${Formatters.toManWonWithUnit(prediction.predictedMax)}',
@@ -71,6 +100,39 @@ class TaxDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
+            if (isVat) ...[
+              const SizedBox(height: 12),
+              NotionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('반기 계산 모드', style: AppTypography.textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment<bool>(value: false, label: Text('입력분만')),
+                        ButtonSegment<bool>(
+                          value: true,
+                          label: Text('반기 전체 추정'),
+                        ),
+                      ],
+                      selected: {provider.vatExtrapolationEnabled},
+                      onSelectionChanged: (selection) {
+                        provider.setVatExtrapolationEnabled(selection.first);
+                      },
+                    ),
+                    if (provider.vatExtrapolationEnabled &&
+                        provider.salesCompletionPercent < 100) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '기간 미충족 월은 평균 기반 추정이 포함돼요.',
+                        style: AppTypography.caption,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
 
             // Section divider
@@ -88,13 +150,12 @@ class TaxDetailScreen extends StatelessWidget {
             // Calculation details
             NotionCard(
               child: Theme(
-                data: Theme.of(context).copyWith(
-                  dividerColor: Colors.transparent,
-                ),
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
                   tilePadding: EdgeInsets.zero,
-                  childrenPadding:
-                      const EdgeInsets.only(top: 8, bottom: 4),
+                  childrenPadding: const EdgeInsets.only(top: 8, bottom: 4),
                   title: Text(
                     '\u25B6 \uACC4\uC0B0 \uACFC\uC815 \uBCF4\uAE30',
                     style: AppTypography.textTheme.titleSmall?.copyWith(
@@ -145,8 +206,7 @@ class TaxDetailScreen extends StatelessWidget {
   Widget _buildVatBreakdown(BusinessProvider provider) {
     final breakdown = provider.vatBreakdown;
     final otherCashSales = breakdown.otherCashSales;
-    final otherCashSalesSafe =
-        otherCashSales < 0 ? 0 : otherCashSales;
+    final otherCashSalesSafe = otherCashSales < 0 ? 0 : otherCashSales;
 
     return NotionCard(
       child: Column(
@@ -159,11 +219,21 @@ class TaxDetailScreen extends StatelessWidget {
             isBold: true,
           ),
           const SizedBox(height: 6),
-          _subItem('\u251C', '\uCE74\uB4DC\uB9E4\uCD9C', Formatters.toManWon(breakdown.cardSales)),
           _subItem(
-              '\u251C', '\uD604\uAE08\uC601\uC218\uC99D', Formatters.toManWon(breakdown.cashReceiptSales)),
-          _subItem('\u2514', '\uAE30\uD0C0\uD604\uAE08',
-              Formatters.toManWon(otherCashSalesSafe)),
+            '\u251C',
+            '\uCE74\uB4DC\uB9E4\uCD9C',
+            Formatters.toManWon(breakdown.cardSales),
+          ),
+          _subItem(
+            '\u251C',
+            '\uD604\uAE08\uC601\uC218\uC99D',
+            Formatters.toManWon(breakdown.cashReceiptSales),
+          ),
+          _subItem(
+            '\u2514',
+            '\uAE30\uD0C0\uD604\uAE08',
+            Formatters.toManWon(otherCashSalesSafe),
+          ),
           const SizedBox(height: 16),
 
           // Purchase tax
@@ -205,7 +275,8 @@ class TaxDetailScreen extends StatelessWidget {
       expenseLabel = '\uD544\uC694\uACBD\uBE44 (\uAE30\uC7A5)';
     } else {
       final rate = breakdown.simpleExpenseRate ?? 0;
-      expenseLabel = '\uD544\uC694\uACBD\uBE44 (\uCD94\uACC4 ${(rate * 100).toStringAsFixed(1)}%)';
+      expenseLabel =
+          '\uD544\uC694\uACBD\uBE44 (\uCD94\uACC4 ${(rate * 100).toStringAsFixed(1)}%)';
     }
 
     final taxBase = breakdown.taxBase < 0 ? 0 : breakdown.taxBase;
@@ -214,30 +285,48 @@ class TaxDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _lineItem('\uCD1D\uC218\uC785\uAE08\uC561', Formatters.toManWonWithUnit(breakdown.annualRevenue),
-              isBold: true),
+          _lineItem(
+            '\uCD1D\uC218\uC785\uAE08\uC561',
+            Formatters.toManWonWithUnit(breakdown.annualRevenue),
+            isBold: true,
+          ),
           const SizedBox(height: 10),
-          _lineItem('- $expenseLabel', Formatters.toManWonWithUnit(breakdown.expenses),
-              color: AppColors.success),
+          _lineItem(
+            '- $expenseLabel',
+            Formatters.toManWonWithUnit(breakdown.expenses),
+            color: AppColors.success,
+          ),
           const Divider(color: AppColors.border, height: 24),
-          _lineItem('= \uC18C\uB4DD\uAE08\uC561', Formatters.toManWonWithUnit(breakdown.taxableIncome),
-              isBold: true),
+          _lineItem(
+            '= \uC18C\uB4DD\uAE08\uC561',
+            Formatters.toManWonWithUnit(breakdown.taxableIncome),
+            isBold: true,
+          ),
           const SizedBox(height: 10),
-          _lineItem('- \uC778\uC801\uACF5\uC81C',
-              Formatters.toManWonWithUnit(breakdown.personalDeduction),
-              color: AppColors.success),
+          _lineItem(
+            '- \uC778\uC801\uACF5\uC81C',
+            Formatters.toManWonWithUnit(breakdown.personalDeduction),
+            color: AppColors.success,
+          ),
           if (breakdown.yellowUmbrellaAnnual > 0) ...[
             const SizedBox(height: 6),
-            _lineItem('- \uB178\uB780\uC6B0\uC0B0\uACF5\uC81C',
-                Formatters.toManWonWithUnit(breakdown.yellowUmbrellaAnnual),
-                color: AppColors.success),
+            _lineItem(
+              '- \uB178\uB780\uC6B0\uC0B0\uACF5\uC81C',
+              Formatters.toManWonWithUnit(breakdown.yellowUmbrellaAnnual),
+              color: AppColors.success,
+            ),
           ],
           const Divider(color: AppColors.border, height: 24),
           _lineItem(
-              '= \uACFC\uC138\uD45C\uC900', Formatters.toManWonWithUnit(taxBase),
-              isBold: true),
+            '= \uACFC\uC138\uD45C\uC900',
+            Formatters.toManWonWithUnit(taxBase),
+            isBold: true,
+          ),
           const SizedBox(height: 10),
-          _lineItem('\uC138\uC728 \uC801\uC6A9 \u2192', Formatters.toManWonWithUnit(breakdown.incomeTax)),
+          _lineItem(
+            '\uC138\uC728 \uC801\uC6A9 \u2192',
+            Formatters.toManWonWithUnit(breakdown.incomeTax),
+          ),
           const SizedBox(height: 6),
           _lineItem(
             '+ \uC9C0\uBC29\uC18C\uB4DD\uC138 (10%)',
@@ -248,8 +337,12 @@ class TaxDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _lineItem(String label, String value,
-      {bool isBold = false, Color? color}) {
+  Widget _lineItem(
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? color,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -341,7 +434,9 @@ class TaxDetailScreen extends StatelessWidget {
   }
 
   Widget _buildMissingDataHint(
-      BuildContext context, BusinessProvider provider) {
+    BuildContext context,
+    BusinessProvider provider,
+  ) {
     final missing = <String>[];
     String? route;
 

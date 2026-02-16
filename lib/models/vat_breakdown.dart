@@ -32,4 +32,3 @@ class VatBreakdown {
 
   int get otherCashSales => totalSales - cardSales - cashReceiptSales;
 }
-

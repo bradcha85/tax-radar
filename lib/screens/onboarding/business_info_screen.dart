@@ -24,10 +24,7 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          '사업장 정보',
-          style: AppTypography.textTheme.titleLarge,
-        ),
+        title: Text('사업장 정보', style: AppTypography.textTheme.titleLarge),
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -37,10 +34,7 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: AppColors.border,
-            height: 1,
-          ),
+          child: Container(color: AppColors.border, height: 1),
         ),
       ),
       body: Column(
@@ -83,10 +77,7 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
                     },
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    '사업자등록증에 써있어요',
-                    style: AppTypography.hint,
-                  ),
+                  Text('사업자등록증에 써있어요', style: AppTypography.hint),
 
                   const SizedBox(height: 32),
 
@@ -105,10 +96,7 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
                     },
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    '보통 포함되어 있어요',
-                    style: AppTypography.hint,
-                  ),
+                  Text('보통 포함되어 있어요', style: AppTypography.hint),
                 ],
               ),
             ),
@@ -154,18 +142,16 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
   }
 
   Widget _buildSectionLabel(String text) {
-    return Text(
-      text,
-      style: AppTypography.textTheme.titleMedium,
-    );
+    return Text(text, style: AppTypography.textTheme.titleMedium);
   }
 
   void _onNext() {
     final provider = Provider.of<BusinessProvider>(context, listen: false);
 
     // Map vatInclusive string to bool
-    final vatInclusiveBool =
-        _vatInclusive == 'exclusive' ? false : true; // default to true
+    final vatInclusiveBool = _vatInclusive == 'exclusive'
+        ? false
+        : true; // default to true
 
     provider.updateBusiness(
       businessType: _businessType,

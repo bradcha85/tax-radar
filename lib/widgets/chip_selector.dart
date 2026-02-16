@@ -76,8 +76,7 @@ class ChipSelector extends StatelessWidget {
                     color: isSelected
                         ? AppColors.primary
                         : AppColors.textPrimary,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
                 if (option.description != null) ...[

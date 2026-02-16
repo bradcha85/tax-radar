@@ -96,12 +96,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                         ),
                         child: Text(
                           '수정',
-                          style:
-                              AppTypography.textTheme.bodyMedium?.copyWith(
+                          style: AppTypography.textTheme.bodyMedium?.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -132,12 +133,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                         ),
                         child: Text(
                           '수정',
-                          style:
-                              AppTypography.textTheme.bodyMedium?.copyWith(
+                          style: AppTypography.textTheme.bodyMedium?.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -158,15 +160,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _ToggleRow(
                       label: '세금 시즌 알림',
                       value: _taxSeasonNotif,
-                      onChanged: (v) =>
-                          setState(() => _taxSeasonNotif = v),
+                      onChanged: (v) => setState(() => _taxSeasonNotif = v),
                     ),
                     const Divider(height: 20, color: AppColors.borderLight),
                     _ToggleRow(
                       label: '월별 입력 알림',
                       value: _monthlyInputNotif,
-                      onChanged: (v) =>
-                          setState(() => _monthlyInputNotif = v),
+                      onChanged: (v) => setState(() => _monthlyInputNotif = v),
                     ),
                   ],
                 ),

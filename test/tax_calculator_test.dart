@@ -7,7 +7,7 @@ import 'package:tax_radar/utils/tax_calculator.dart';
 
 void main() {
   group('TaxCalculator.computeVatBreakdown', () {
-    test('의제매입 공제: 한도 미만이면 전액 공제(9/109)', () {
+    test('의제매입 공제: 한도 미만이면 전액 공제(8/108)', () {
       final business = Business(
         businessType: 'restaurant',
         taxType: 'general',
@@ -28,8 +28,8 @@ void main() {
         asOf: DateTime(2026, 2, 16),
       );
 
-      // taxBase = 100,000,000 → 한도(75%) 75,000,000보다 작으므로 10,000,000 전액 공제
-      expect(breakdown.deemedPurchaseCredit, equals(825688));
+      // taxBase = 100,000,000 → 한도(50%) 50,000,000보다 작으므로 10,000,000 전액 공제
+      expect(breakdown.deemedPurchaseCredit, equals(740741));
     });
 
     test('의제매입 공제: 한도 초과 시 min(매입, 과세표준×한도율)', () {
@@ -53,11 +53,11 @@ void main() {
         asOf: DateTime(2026, 2, 16),
       );
 
-      // taxBase = 100,000,000 → 한도(75%) 75,000,000에 9/109 적용
-      expect(breakdown.deemedPurchaseCredit, equals(6192661));
+      // taxBase = 100,000,000 → 한도(50%) 50,000,000에 8/108 적용
+      expect(breakdown.deemedPurchaseCredit, equals(3703704));
     });
 
-    test('의제매입 공제: 2027년 이후 8/108 적용', () {
+    test('의제매입 공제: 2027년에도 동일한 8/108 적용', () {
       final business = Business(
         businessType: 'restaurant',
         taxType: 'general',
@@ -78,8 +78,8 @@ void main() {
         asOf: DateTime(2027, 1, 1),
       );
 
-      // taxBase = 100,000,000 → 한도(75%) 75,000,000에 8/108 적용
-      expect(breakdown.deemedPurchaseCredit, equals(5555556));
+      // taxBase = 100,000,000 → 한도(50%) 50,000,000에 8/108 적용
+      expect(breakdown.deemedPurchaseCredit, equals(3703704));
     });
 
     test('신카 발행세액공제: 2026년 연간 한도(1천만) 적용', () {
@@ -171,4 +171,3 @@ void main() {
     });
   });
 }
-

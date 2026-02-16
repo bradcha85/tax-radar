@@ -32,14 +32,13 @@ class TaxCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(
-                  title,
-                  style: AppTypography.textTheme.titleMedium,
-                ),
+                child: Text(title, style: AppTypography.textTheme.titleMedium),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: _ddayColor,
                   borderRadius: BorderRadius.circular(6),

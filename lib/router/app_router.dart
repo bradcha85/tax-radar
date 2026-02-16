@@ -15,6 +15,8 @@ import '../screens/data_input/history_input_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/tax_detail/tax_detail_screen.dart';
 import '../screens/simulator/simulator_screen.dart';
+import '../screens/precision_tax/precision_tax_screen.dart';
+import '../screens/glossary/glossary_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -86,6 +88,14 @@ class AppRouter {
         GoRoute(
           path: '/simulator',
           builder: (context, state) => const SimulatorScreen(),
+        ),
+        GoRoute(
+          path: '/precision-tax',
+          builder: (context, state) => const PrecisionTaxScreen(),
+        ),
+        GoRoute(
+          path: '/glossary',
+          builder: (context, state) => const GlossaryScreen(),
         ),
 
         // Data input sub-screens

@@ -47,8 +47,9 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
     _supportsParents = profile.supportsParents;
     _yellowUmbrella = profile.yellowUmbrella;
     if (profile.yellowUmbrellaMonthly != null) {
-      _umbrellaController.text =
-          Formatters.formatWon(profile.yellowUmbrellaMonthly!);
+      _umbrellaController.text = Formatters.formatWon(
+        profile.yellowUmbrellaMonthly!,
+      );
     }
   }
 
@@ -57,22 +58,21 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
     final vatAmount = int.tryParse(vatText);
 
     final umbrellaText = _umbrellaController.text.replaceAll(',', '');
-    final umbrellaMonthly =
-        _yellowUmbrella ? int.tryParse(umbrellaText) : null;
+    final umbrellaMonthly = _yellowUmbrella ? int.tryParse(umbrellaText) : null;
 
     context.read<BusinessProvider>().updateProfile(
-          previousVatAmount: vatAmount,
-          hasBookkeeping: _bookkeeping == 'yes',
-          hasSpouse: _hasSpouse,
-          childrenCount: _childrenCount,
-          supportsParents: _supportsParents,
-          yellowUmbrella: _yellowUmbrella,
-          yellowUmbrellaMonthly: umbrellaMonthly,
-        );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('저장되었습니다')),
+      previousVatAmount: vatAmount,
+      hasBookkeeping: _bookkeeping == 'yes',
+      hasSpouse: _hasSpouse,
+      childrenCount: _childrenCount,
+      supportsParents: _supportsParents,
+      yellowUmbrella: _yellowUmbrella,
+      yellowUmbrellaMonthly: umbrellaMonthly,
     );
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('저장되었습니다')));
     context.pop();
   }
 
@@ -104,8 +104,7 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Previous VAT amount
-            Text('직전 부가세 납부세액',
-                style: AppTypography.textTheme.titleSmall),
+            Text('직전 부가세 납부세액', style: AppTypography.textTheme.titleSmall),
             const SizedBox(height: 8),
             TextField(
               controller: _vatController,
@@ -120,8 +119,10 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
                 hintStyle: AppTypography.hint.copyWith(fontSize: 16),
                 suffixText: '원',
                 suffixStyle: AppTypography.textTheme.bodyMedium,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppColors.border),
@@ -141,8 +142,7 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
             const SizedBox(height: 24),
 
             // Bookkeeping
-            Text('장부(기장) 하고 계세요?',
-                style: AppTypography.textTheme.titleSmall),
+            Text('장부(기장) 하고 계세요?', style: AppTypography.textTheme.titleSmall),
             const SizedBox(height: 12),
             ChipSelector(
               options: const [
@@ -198,8 +198,7 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
             _DependentCheckbox(
               label: '부모님',
               value: _supportsParents,
-              onChanged: (v) =>
-                  setState(() => _supportsParents = v ?? false),
+              onChanged: (v) => setState(() => _supportsParents = v ?? false),
             ),
             const SizedBox(height: 24),
 
@@ -212,8 +211,7 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
                 ChipOption(label: '가입', value: 'yes'),
               ],
               selectedValue: _yellowUmbrella ? 'yes' : 'no',
-              onSelected: (v) =>
-                  setState(() => _yellowUmbrella = v == 'yes'),
+              onSelected: (v) => setState(() => _yellowUmbrella = v == 'yes'),
             ),
             if (_yellowUmbrella) ...[
               const SizedBox(height: 12),
@@ -233,7 +231,9 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
                   suffixText: '원',
                   suffixStyle: AppTypography.textTheme.bodyMedium,
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -364,9 +364,7 @@ class _DependentCheckbox extends StatelessWidget {
             Text(
               label,
               style: AppTypography.textTheme.bodyMedium?.copyWith(
-                color: enabled
-                    ? AppColors.textPrimary
-                    : AppColors.textHint,
+                color: enabled ? AppColors.textPrimary : AppColors.textHint,
               ),
             ),
           ],

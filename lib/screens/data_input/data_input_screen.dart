@@ -45,8 +45,8 @@ class DataInputScreen extends StatelessWidget {
                           accuracy >= 70
                               ? AppColors.success
                               : accuracy >= 40
-                                  ? AppColors.warning
-                                  : AppColors.danger,
+                              ? AppColors.warning
+                              : AppColors.danger,
                         ),
                       ),
                     ),
@@ -82,6 +82,45 @@ class DataInputScreen extends StatelessWidget {
                 label: '과거 이력',
                 percent: provider.historyCompletionPercent,
                 onTap: () => context.push('/data/history'),
+              ),
+              const SizedBox(height: 20),
+              NotionCard(
+                onTap: () => context.push('/precision-tax'),
+                child: Row(
+                  children: [
+                    const Text('\uD83E\uDDEE', style: TextStyle(fontSize: 24)),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '정밀 종소세',
+                            style: AppTypography.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '신고급 계산 Stepper 시작/이어하기',
+                            style: AppTypography.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${provider.precisionWizardCompletionPercent}%',
+                      style: AppTypography.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textHint,
+                      size: 20,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -135,10 +174,7 @@ class _DataCategoryCard extends StatelessWidget {
           Text(emoji, style: const TextStyle(fontSize: 24)),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              label,
-              style: AppTypography.textTheme.titleSmall,
-            ),
+            child: Text(label, style: AppTypography.textTheme.titleSmall),
           ),
           if (percent > 0) ...[
             Container(
@@ -174,11 +210,7 @@ class _DataCategoryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          Icon(
-            Icons.chevron_right,
-            color: AppColors.textHint,
-            size: 20,
-          ),
+          Icon(Icons.chevron_right, color: AppColors.textHint, size: 20),
         ],
       ),
     );

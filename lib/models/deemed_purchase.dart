@@ -2,10 +2,7 @@ class DeemedPurchase {
   DateTime yearMonth;
   int amount; // in won
 
-  DeemedPurchase({
-    required this.yearMonth,
-    required this.amount,
-  });
+  DeemedPurchase({required this.yearMonth, required this.amount});
 
   Map<String, dynamic> toJson() => {
     'yearMonth': yearMonth.toIso8601String(),

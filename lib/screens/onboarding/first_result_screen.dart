@@ -110,8 +110,7 @@ class FirstResultScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             '지출 자료를 추가하면 좁아져요',
-                            style:
-                                AppTypography.textTheme.bodyMedium?.copyWith(
+                            style: AppTypography.textTheme.bodyMedium?.copyWith(
                               color: AppColors.textSecondary,
                             ),
                           ),
@@ -149,8 +148,7 @@ class FirstResultScreen extends StatelessWidget {
                         ),
                         child: Text(
                           '지금 추가하기',
-                          style:
-                              AppTypography.textTheme.titleMedium?.copyWith(
+                          style: AppTypography.textTheme.titleMedium?.copyWith(
                             color: AppColors.textOnPrimary,
                           ),
                         ),
@@ -178,8 +176,7 @@ class FirstResultScreen extends StatelessWidget {
                         ),
                         child: Text(
                           '나중에 할게요',
-                          style:
-                              AppTypography.textTheme.titleMedium?.copyWith(
+                          style: AppTypography.textTheme.titleMedium?.copyWith(
                             color: AppColors.textPrimary,
                           ),
                         ),

@@ -30,10 +30,7 @@ class AccuracyGauge extends StatelessWidget {
           // Overall accuracy
           Row(
             children: [
-              Text(
-                '정확도',
-                style: AppTypography.textTheme.titleMedium,
-              ),
+              Text('정확도', style: AppTypography.textTheme.titleMedium),
               const SizedBox(width: 8),
               Text(
                 '$overallPercent%',
@@ -78,10 +75,7 @@ class AccuracyGauge extends StatelessWidget {
         const SizedBox(width: 8),
         SizedBox(
           width: 56,
-          child: Text(
-            label,
-            style: AppTypography.textTheme.bodyMedium,
-          ),
+          child: Text(label, style: AppTypography.textTheme.bodyMedium),
         ),
         const SizedBox(width: 8),
         Expanded(
