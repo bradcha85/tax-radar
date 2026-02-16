@@ -43,6 +43,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------------
+  // Layout: StepIndicator (top) + ScrollableContent (middle) + BottomNav (bottom)
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<BusinessProvider>();
@@ -67,77 +71,180 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
         ],
       ),
       body: SafeArea(
-        child: Stepper(
-          currentStep: _currentStep,
-          type: StepperType.vertical,
-          onStepTapped: (index) => setState(() => _currentStep = index),
-          onStepCancel: _currentStep == 0
-              ? null
-              : () => setState(() => _currentStep -= 1),
-          onStepContinue: () {
-            if (_currentStep >= 4) return;
-            if (!_canContinueStep(_currentStep)) return;
-            setState(() => _currentStep += 1);
-          },
-          controlsBuilder: (context, details) {
-            final isLast = _currentStep == 4;
-            return Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Row(
-                children: [
-                  if (!isLast)
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _canContinueStep(_currentStep)
-                            ? details.onStepContinue
-                            : null,
-                        child: Text(_currentStep == 3 ? '결과 보기' : '다음'),
-                      ),
-                    ),
-                  if (!isLast) const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _currentStep == 0
-                          ? () => context.pop()
-                          : details.onStepCancel,
-                      child: Text(_currentStep == 0 ? '닫기' : '이전'),
-                    ),
-                  ),
-                ],
+        child: Column(
+          children: [
+            _buildStepIndicator(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                child: _buildCurrentStepContent(provider, result),
               ),
-            );
-          },
-          steps: [
-            Step(
-              title: const Text('Step 0 · 시작'),
-              isActive: _currentStep >= 0,
-              content: _buildStep0(result),
             ),
-            Step(
-              title: const Text('Step 1 · 소득'),
-              isActive: _currentStep >= 1,
-              content: _buildStep1(provider.business.businessType),
-            ),
-            Step(
-              title: const Text('Step 2 · 공제'),
-              isActive: _currentStep >= 2,
-              content: _buildStep2(),
-            ),
-            Step(
-              title: const Text('Step 3 · 기납부'),
-              isActive: _currentStep >= 3,
-              content: _buildStep3(),
-            ),
-            Step(
-              title: const Text('Step 4 · 결과'),
-              isActive: _currentStep >= 4,
-              content: _buildStep4(result),
-            ),
+            _buildBottomNav(),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildStepIndicator() {
+    const labels = ['시작', '소득', '공제', '기납부', '결과'];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: List.generate(labels.length * 2 - 1, (i) {
+          // Even indices = step circles, odd indices = connector lines
+          if (i.isOdd) {
+            final stepBefore = i ~/ 2;
+            return Expanded(
+              child: Container(
+                height: 2,
+                color: stepBefore < _currentStep
+                    ? AppColors.primary
+                    : AppColors.border,
+              ),
+            );
+          }
+
+          final index = i ~/ 2;
+          final isActive = index == _currentStep;
+          final isCompleted = index < _currentStep;
+
+          return GestureDetector(
+            onTap: () => setState(() => _currentStep = index),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: 44,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isActive || isCompleted
+                          ? AppColors.primary
+                          : AppColors.surface,
+                      border: Border.all(
+                        color: isActive || isCompleted
+                            ? AppColors.primary
+                            : AppColors.border,
+                        width: 2,
+                      ),
+                    ),
+                    child: Center(
+                      child: isCompleted
+                          ? const Icon(Icons.check,
+                              size: 14, color: AppColors.textOnPrimary)
+                          : Text(
+                              '${index + 1}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isActive
+                                    ? AppColors.textOnPrimary
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    labels[index],
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                      color: isActive
+                          ? AppColors.primary
+                          : isCompleted
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildCurrentStepContent(
+    BusinessProvider provider,
+    PrecisionTaxResult result,
+  ) {
+    switch (_currentStep) {
+      case 0:
+        return _buildStep0(result);
+      case 1:
+        return _buildStep1(provider.business.businessType);
+      case 2:
+        return _buildStep2();
+      case 3:
+        return _buildStep3();
+      case 4:
+        return _buildStep4(result);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildBottomNav() {
+    final isFirst = _currentStep == 0;
+    final isLast = _currentStep == 4;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 48,
+              child: OutlinedButton(
+                onPressed: isFirst
+                    ? () => context.pop()
+                    : () => setState(() => _currentStep -= 1),
+                child: Text(isFirst ? '닫기' : '이전'),
+              ),
+            ),
+          ),
+          if (!isLast) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _canContinueStep(_currentStep)
+                      ? () {
+                          if (_currentStep >= 4) return;
+                          setState(() => _currentStep += 1);
+                        }
+                      : null,
+                  child: Text(_currentStep == 3 ? '결과 보기' : '다음'),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 0 · 시작
+  // ---------------------------------------------------------------------------
 
   Widget _buildStep0(PrecisionTaxResult result) {
     final now = DateTime.now();
@@ -157,28 +264,18 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 termId: 'T21',
                 onTermViewed: _onTermViewed,
               ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: Text('작년($lastYear, 신고용)'),
-                    selected: _draft.taxYear == lastYear,
-                    onSelected: (_) => _updateDraft(
-                      (draft) => draft.copyWith(taxYear: lastYear),
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: Text('올해($thisYear, 예상)'),
-                    selected: _draft.taxYear == thisYear,
-                    onSelected: (_) => _updateDraft(
-                      (draft) => draft.copyWith(taxYear: thisYear),
-                    ),
-                  ),
+              const SizedBox(height: 12),
+              _buildNotionChips(
+                options: [
+                  _ChipOption('작년($lastYear, 신고용)', lastYear),
+                  _ChipOption('올해($thisYear, 예상)', thisYear),
                 ],
+                selectedValue: _draft.taxYear,
+                onSelected: (value) => _updateDraft(
+                  (draft) => draft.copyWith(taxYear: value as int),
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 key: ValueKey<int>(_draft.taxYear),
                 initialValue: _draft.taxYear,
@@ -196,7 +293,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   _updateDraft((draft) => draft.copyWith(taxYear: value));
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
                 '오늘이 ${now.year}년이면 기본 귀속연도는 ${now.year - 1}년이에요.',
                 style: AppTypography.caption,
@@ -204,13 +301,14 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               if (result.usesEstimatedYearConstants) ...[
                 const SizedBox(height: 8),
                 _NoticePill(
-                  text: '상수표가 없어 ${result.breakdown.appliedYear}년 기준으로 예상 계산 중',
+                  text:
+                      '상수표가 없어 ${result.breakdown.appliedYear}년 기준으로 예상 계산 중',
                 ),
               ],
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         NotionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,6 +368,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Step 1 · 소득
+  // ---------------------------------------------------------------------------
+
   Widget _buildStep1(String businessType) {
     final monthItems = _draft.monthlyBusinessInputs.toList()
       ..sort((a, b) => a.month.compareTo(b.month));
@@ -286,7 +388,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 termId: 'T07',
                 onTermViewed: _onTermViewed,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               SegmentedButton<BusinessInputMode>(
                 segments: const [
                   ButtonSegment<BusinessInputMode>(
@@ -323,12 +425,12 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         if (_draft.businessInputMode == BusinessInputMode.annual)
           _buildAnnualBusinessInputs(businessType)
         else
           _buildMonthlyBusinessInputs(monthItems),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         if (_draft.hasLaborIncome)
           _buildIncomeSection(
             kind: _IncomeKind.labor,
@@ -347,7 +449,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             title: '금융소득',
             amountTermId: 'T20',
           ),
-          const SizedBox(height: 8),
           NotionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,55 +457,26 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   '이자+배당 2,000만원 초과 여부',
                   style: AppTypography.textTheme.titleSmall,
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('예'),
-                      selected:
-                          _draft.financialOverTwentyMillion ==
-                          SelectionState.yes,
-                      onSelected: (_) {
-                        _updateDraft(
-                          (draft) => draft.copyWith(
-                            financialOverTwentyMillion: SelectionState.yes,
-                          ),
-                        );
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('아니오'),
-                      selected:
-                          _draft.financialOverTwentyMillion ==
-                          SelectionState.no,
-                      onSelected: (_) {
-                        _updateDraft(
-                          (draft) => draft.copyWith(
-                            financialOverTwentyMillion: SelectionState.no,
-                          ),
-                        );
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('모르겠어요'),
-                      selected:
-                          _draft.financialOverTwentyMillion ==
-                          SelectionState.unknown,
-                      onSelected: (_) {
-                        _updateDraft(
-                          (draft) => draft.copyWith(
-                            financialOverTwentyMillion: SelectionState.unknown,
-                          ),
-                        );
-                      },
-                    ),
+                const SizedBox(height: 12),
+                _buildNotionChips(
+                  options: [
+                    _ChipOption('예', SelectionState.yes),
+                    _ChipOption('아니오', SelectionState.no),
+                    _ChipOption('모르겠어요', SelectionState.unknown),
                   ],
+                  selectedValue: _draft.financialOverTwentyMillion,
+                  onSelected: (value) {
+                    _updateDraft(
+                      (draft) => draft.copyWith(
+                        financialOverTwentyMillion: value as SelectionState,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 16),
         ],
         if (_draft.hasOtherIncome)
           _buildIncomeSection(
@@ -429,7 +501,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 statusLabel: _draft.annualSales.status.label,
                 onTermViewed: _onTermViewed,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _amountField(
                 keyName: 'annual_sales',
                 value: _draft.annualSales.value,
@@ -438,55 +510,26 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   _updateDraft((draft) => draft.copyWith(annualSales: field));
                 },
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('VAT 포함'),
-                    selected:
-                        _draft.annualSalesVatMode ==
-                        VatInclusionChoice.included,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) => draft.copyWith(
-                          annualSalesVatMode: VatInclusionChoice.included,
-                        ),
-                      );
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('VAT 미포함'),
-                    selected:
-                        _draft.annualSalesVatMode ==
-                        VatInclusionChoice.excluded,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) => draft.copyWith(
-                          annualSalesVatMode: VatInclusionChoice.excluded,
-                        ),
-                      );
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('모르겠어요'),
-                    selected:
-                        _draft.annualSalesVatMode == VatInclusionChoice.unknown,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) => draft.copyWith(
-                          annualSalesVatMode: VatInclusionChoice.unknown,
-                        ),
-                      );
-                    },
-                  ),
+              const SizedBox(height: 12),
+              _buildNotionChips(
+                options: [
+                  _ChipOption('VAT 포함', VatInclusionChoice.included),
+                  _ChipOption('VAT 미포함', VatInclusionChoice.excluded),
+                  _ChipOption('모르겠어요', VatInclusionChoice.unknown),
                 ],
+                selectedValue: _draft.annualSalesVatMode,
+                onSelected: (value) {
+                  _updateDraft(
+                    (draft) => draft.copyWith(
+                      annualSalesVatMode: value as VatInclusionChoice,
+                    ),
+                  );
+                },
               ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         NotionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,7 +542,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                     : '단순경비율',
                 onTermViewed: _onTermViewed,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               if (_draft.bookkeeping)
                 _amountField(
                   keyName: 'annual_expenses',
@@ -519,11 +562,13 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   ),
                 ),
               if (_draft.bookkeeping) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    OutlinedButton(
+                    _notionOutlinedButton(
+                      label: '모르겠어요(업종 추정)',
                       onPressed: () {
                         final sales = _draft.annualSales.value ?? 0;
                         final estimated =
@@ -539,9 +584,9 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                               draft.copyWith(annualExpenses: field),
                         );
                       },
-                      child: const Text('모르겠어요(업종 추정)'),
                     ),
-                    OutlinedButton(
+                    _notionOutlinedButton(
+                      label: '0원',
                       onPressed: () {
                         _setFieldDirect(
                           keyName: 'annual_expenses',
@@ -553,7 +598,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                               draft.copyWith(annualExpenses: field),
                         );
                       },
-                      child: const Text('0원'),
                     ),
                   ],
                 ),
@@ -579,7 +623,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           SwitchListTile(
             value: _draft.fillMissingMonths,
             onChanged: (value) {
-              _updateDraft((draft) => draft.copyWith(fillMissingMonths: value));
+              _updateDraft(
+                  (draft) => draft.copyWith(fillMissingMonths: value));
             },
             contentPadding: EdgeInsets.zero,
             title: const Text('누락 월 추정 채우기'),
@@ -651,7 +696,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     final withholdingKey = '${kind.name}_withholding';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 16),
       child: NotionCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,42 +706,38 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               termId: amountTermId,
               onTermViewed: _onTermViewed,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _amountField(
               keyName: amountKey,
               value: input.incomeAmount.value,
               hint: '$title 소득금액(원)',
               statusLabel: input.incomeAmount.status.label,
               onChanged: (field) {
-                _updateIncome(kind, (old) => old.copyWith(incomeAmount: field));
+                _updateIncome(
+                    kind, (old) => old.copyWith(incomeAmount: field));
               },
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                OutlinedButton(
-                  onPressed: () async {
-                    final selected = await _showIncomeRangePicker(title);
-                    if (selected == null) return;
-                    _setFieldDirect(
-                      keyName: amountKey,
-                      field: NumericField(
-                        value: selected,
-                        status: PrecisionValueStatus.estimatedUser,
-                      ),
-                      apply: (draft, field) => _applyIncomeUpdate(
-                        draft,
-                        kind,
-                        (old) => old.copyWith(incomeAmount: field),
-                      ),
-                    );
-                  },
-                  child: const Text('소득금액 모르겠어요'),
-                ),
-              ],
+            _notionOutlinedButton(
+              label: '소득금액 모르겠어요',
+              onPressed: () async {
+                final selected = await _showIncomeRangePicker(title);
+                if (selected == null) return;
+                _setFieldDirect(
+                  keyName: amountKey,
+                  field: NumericField(
+                    value: selected,
+                    status: PrecisionValueStatus.estimatedUser,
+                  ),
+                  apply: (draft, field) => _applyIncomeUpdate(
+                    draft,
+                    kind,
+                    (old) => old.copyWith(incomeAmount: field),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 12),
+            const Divider(height: 32, color: AppColors.borderLight),
             _amountField(
               keyName: withholdingKey,
               value: input.withholdingTax.value,
@@ -712,8 +753,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
-                OutlinedButton(
+                _notionOutlinedButton(
+                  label: '0원',
                   onPressed: () {
                     _setFieldDirect(
                       keyName: withholdingKey,
@@ -728,9 +771,9 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                       ),
                     );
                   },
-                  child: const Text('0원'),
                 ),
-                OutlinedButton(
+                _notionOutlinedButton(
+                  label: '모르겠어요(추정 0)',
                   onPressed: () {
                     _setFieldDirect(
                       keyName: withholdingKey,
@@ -745,7 +788,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                       ),
                     );
                   },
-                  child: const Text('모르겠어요(추정 0)'),
                 ),
               ],
             ),
@@ -754,6 +796,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Step 2 · 공제
+  // ---------------------------------------------------------------------------
 
   Widget _buildStep2() {
     return Column(
@@ -768,72 +814,54 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 termId: 'T15',
                 onTermViewed: _onTermViewed,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               Text('배우자', style: AppTypography.textTheme.bodyMedium),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('있음'),
-                    selected: _draft.spouseSelection == SelectionState.yes,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) =>
-                            draft.copyWith(spouseSelection: SelectionState.yes),
-                      );
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('없음'),
-                    selected: _draft.spouseSelection == SelectionState.no,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) =>
-                            draft.copyWith(spouseSelection: SelectionState.no),
-                      );
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('모르겠어요'),
-                    selected: _draft.spouseSelection == SelectionState.unknown,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) => draft.copyWith(
-                          spouseSelection: SelectionState.unknown,
-                        ),
-                      );
-                    },
-                  ),
+              const SizedBox(height: 8),
+              _buildNotionChips(
+                options: [
+                  _ChipOption('있음', SelectionState.yes),
+                  _ChipOption('없음', SelectionState.no),
+                  _ChipOption('모르겠어요', SelectionState.unknown),
                 ],
+                selectedValue: _draft.spouseSelection,
+                onSelected: (value) {
+                  _updateDraft(
+                    (draft) => draft.copyWith(
+                        spouseSelection: value as SelectionState),
+                  );
+                },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _amountField(
                 keyName: 'children_count',
                 value: _draft.childrenCount.value,
-                hint: '자녀 수(명)',
+                hint: '자녀 수',
                 statusLabel: _draft.childrenCount.status.label,
                 onChanged: (field) {
-                  _updateDraft((draft) => draft.copyWith(childrenCount: field));
+                  _updateDraft(
+                      (draft) => draft.copyWith(childrenCount: field));
                 },
                 isCount: true,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               _amountField(
                 keyName: 'parents_count',
                 value: _draft.parentsCount.value,
-                hint: '부모 부양 수(명)',
+                hint: '부모 부양 수',
                 statusLabel: _draft.parentsCount.status.label,
                 onChanged: (field) {
-                  _updateDraft((draft) => draft.copyWith(parentsCount: field));
+                  _updateDraft(
+                      (draft) => draft.copyWith(parentsCount: field));
                 },
                 isCount: true,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
-                  OutlinedButton(
+                  _notionOutlinedButton(
+                    label: '자녀 모르겠어요',
                     onPressed: () {
                       _setFieldDirect(
                         keyName: 'children_count',
@@ -845,9 +873,9 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                             draft.copyWith(childrenCount: field),
                       );
                     },
-                    child: const Text('자녀 모르겠어요'),
                   ),
-                  OutlinedButton(
+                  _notionOutlinedButton(
+                    label: '부모 모르겠어요',
                     onPressed: () {
                       _setFieldDirect(
                         keyName: 'parents_count',
@@ -859,14 +887,13 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                             draft.copyWith(parentsCount: field),
                       );
                     },
-                    child: const Text('부모 모르겠어요'),
                   ),
                 ],
               ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         NotionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -876,56 +903,29 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 termId: 'T16',
                 onTermViewed: _onTermViewed,
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('가입'),
-                    selected:
-                        _draft.yellowUmbrellaSelection == SelectionState.yes,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) => draft.copyWith(
-                          yellowUmbrellaSelection: SelectionState.yes,
-                        ),
-                      );
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('미가입'),
-                    selected:
-                        _draft.yellowUmbrellaSelection == SelectionState.no,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) => draft.copyWith(
-                          yellowUmbrellaSelection: SelectionState.no,
-                        ),
-                      );
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('모르겠어요'),
-                    selected:
-                        _draft.yellowUmbrellaSelection ==
-                        SelectionState.unknown,
-                    onSelected: (_) {
-                      _updateDraft(
-                        (draft) => draft.copyWith(
-                          yellowUmbrellaSelection: SelectionState.unknown,
-                        ),
-                      );
-                    },
-                  ),
+              const SizedBox(height: 12),
+              _buildNotionChips(
+                options: [
+                  _ChipOption('가입', SelectionState.yes),
+                  _ChipOption('미가입', SelectionState.no),
+                  _ChipOption('모르겠어요', SelectionState.unknown),
                 ],
+                selectedValue: _draft.yellowUmbrellaSelection,
+                onSelected: (value) {
+                  _updateDraft(
+                    (draft) => draft.copyWith(
+                        yellowUmbrellaSelection: value as SelectionState),
+                  );
+                },
               ),
               if (_draft.yellowUmbrellaSelection == SelectionState.yes) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 _amountField(
                   keyName: 'yellow_annual',
                   value: _draft.yellowUmbrellaAnnualPayment.value,
                   hint: '연간 납입액(원)',
-                  statusLabel: _draft.yellowUmbrellaAnnualPayment.status.label,
+                  statusLabel:
+                      _draft.yellowUmbrellaAnnualPayment.status.label,
                   onChanged: (field) {
                     _updateDraft(
                       (draft) =>
@@ -934,7 +934,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
-                OutlinedButton(
+                _notionOutlinedButton(
+                  label: '모르겠어요(0원)',
                   onPressed: () {
                     _setFieldDirect(
                       keyName: 'yellow_annual',
@@ -946,13 +947,12 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                           draft.copyWith(yellowUmbrellaAnnualPayment: field),
                     );
                   },
-                  child: const Text('모르겠어요(0원)'),
                 ),
               ],
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         NotionCard(
           child: Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -984,24 +984,33 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Step 3 · 기납부
+  // ---------------------------------------------------------------------------
+
   Widget _buildStep3() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         NotionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
             children: [
-              Text(
-                '추가/환급은 이미 낸 세금을 알아야 정확해요.',
-                style: AppTypography.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
+              Icon(Icons.info_outline,
+                  size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '추가/환급은 이미 낸 세금을 알아야 정확해요.',
+                  style: AppTypography.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         if (_draft.hasLaborIncome)
           _withholdingCard(kind: _IncomeKind.labor, label: '근로 원천징수'),
         if (_draft.hasPensionIncome)
@@ -1018,14 +1027,16 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           keyName: 'midterm_prepayment',
           onSelection: (selection) {
             _updateDraft(
-              (draft) => draft.copyWith(midtermPrepaymentSelection: selection),
+              (draft) =>
+                  draft.copyWith(midtermPrepaymentSelection: selection),
             );
           },
           onAmount: (field) {
-            _updateDraft((draft) => draft.copyWith(midtermPrepayment: field));
+            _updateDraft(
+                (draft) => draft.copyWith(midtermPrepayment: field));
           },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         _selectionAmountCard(
           title: '기타 기납부',
           termId: 'T04',
@@ -1034,23 +1045,39 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           keyName: 'other_prepayment',
           onSelection: (selection) {
             _updateDraft(
-              (draft) => draft.copyWith(otherPrepaymentSelection: selection),
+              (draft) =>
+                  draft.copyWith(otherPrepaymentSelection: selection),
             );
           },
           onAmount: (field) {
-            _updateDraft((draft) => draft.copyWith(otherPrepayment: field));
+            _updateDraft(
+                (draft) => draft.copyWith(otherPrepayment: field));
           },
         ),
-        const SizedBox(height: 8),
-        NotionCard(
+        const SizedBox(height: 16),
+        // Summary card — visually distinct
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('기납부세액 합계', style: AppTypography.textTheme.titleSmall),
               Text(
-                Formatters.formatWonWithUnit(_prepaymentTotal()),
+                '기납부세액 합계',
                 style: AppTypography.textTheme.titleSmall?.copyWith(
                   color: AppColors.primary,
+                ),
+              ),
+              Text(
+                Formatters.formatWonWithUnit(_prepaymentTotal()),
+                style: AppTypography.textTheme.titleMedium?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -1059,6 +1086,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
       ],
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Step 4 · 결과
+  // ---------------------------------------------------------------------------
 
   Widget _buildStep4(PrecisionTaxResult result) {
     final summary = result.breakdown;
@@ -1073,31 +1104,32 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             children: [
               Row(
                 children: [
-                  Text('결과 요약', style: AppTypography.textTheme.titleMedium),
+                  Text('결과 요약',
+                      style: AppTypography.textTheme.titleMedium),
                   if (result.hasEstimate) ...[
                     const SizedBox(width: 8),
                     const _NoticePill(text: '추정 포함'),
                   ],
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _summaryRow('총세금(결정세액)', summary.totalTax),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               _summaryRow('기납부세액', summary.prepaymentTotal),
               const Divider(height: 24, color: AppColors.border),
               _summaryRow(
                 additionalPositive ? '추가 납부' : '환급 예상',
                 summary.additionalOrRefund.abs(),
-                valueColor: additionalPositive
-                    ? AppColors.danger
-                    : AppColors.success,
+                valueColor:
+                    additionalPositive ? AppColors.danger : AppColors.success,
               ),
               if (result.hasEstimate) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   '총세금 범위: ${Formatters.toManWon(result.totalTaxMin)} ~ ${Formatters.toManWonWithUnit(result.totalTaxMax)}',
                   style: AppTypography.caption,
                 ),
+                const SizedBox(height: 4),
                 Text(
                   '추가/환급 범위: ${Formatters.toManWon(result.additionalMin)} ~ ${Formatters.toManWonWithUnit(result.additionalMax)}',
                   style: AppTypography.caption,
@@ -1106,13 +1138,13 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         NotionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('정밀도', style: AppTypography.textTheme.titleMedium),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -1131,13 +1163,14 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           ),
         ),
         if (result.nextActions.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           NotionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('다음 액션', style: AppTypography.textTheme.titleMedium),
-                const SizedBox(height: 8),
+                Text('다음 액션',
+                    style: AppTypography.textTheme.titleMedium),
+                const SizedBox(height: 12),
                 ...result.nextActions.map(
                   (action) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -1155,13 +1188,14 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           ),
         ],
         if (result.estimatedItems.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           NotionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('추정 항목', style: AppTypography.textTheme.titleMedium),
-                const SizedBox(height: 8),
+                Text('추정 항목',
+                    style: AppTypography.textTheme.titleMedium),
+                const SizedBox(height: 12),
                 ...result.estimatedItems.map(
                   (item) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -1179,13 +1213,13 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           ),
         ],
         if (result.notices.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           NotionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('안내', style: AppTypography.textTheme.titleMedium),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 for (final notice in result.notices) ...[
                   Text(
                     '• $notice',
@@ -1193,13 +1227,13 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                 ],
               ],
             ),
           ),
         ],
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         NotionCard(
           child: Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -1223,7 +1257,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 _breakdownRow('총세금(결정세액)', summary.totalTax),
                 _breakdownRow('기납부세액', summary.prepaymentTotal),
                 _breakdownRow('추가/환급', summary.additionalOrRefund),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
               ],
             ),
           ),
@@ -1232,12 +1266,17 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     );
   }
 
-  Widget _withholdingCard({required _IncomeKind kind, required String label}) {
+  // ---------------------------------------------------------------------------
+  // Shared card widgets
+  // ---------------------------------------------------------------------------
+
+  Widget _withholdingCard(
+      {required _IncomeKind kind, required String label}) {
     final input = _incomeInput(kind);
     final keyName = '${kind.name}_withholding';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 16),
       child: NotionCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1248,7 +1287,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               statusLabel: input.withholdingTax.status.label,
               onTermViewed: _onTermViewed,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _amountField(
               keyName: keyName,
               value: input.withholdingTax.value,
@@ -1263,8 +1302,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
-                OutlinedButton(
+                _notionOutlinedButton(
+                  label: '0원',
                   onPressed: () {
                     _setFieldDirect(
                       keyName: keyName,
@@ -1279,9 +1320,9 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                       ),
                     );
                   },
-                  child: const Text('0원'),
                 ),
-                OutlinedButton(
+                _notionOutlinedButton(
+                  label: '모르겠어요',
                   onPressed: () {
                     _setFieldDirect(
                       keyName: keyName,
@@ -1296,7 +1337,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                       ),
                     );
                   },
-                  child: const Text('모르겠어요'),
                 ),
               ],
             ),
@@ -1325,47 +1365,38 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             statusLabel: selection.status.label,
             onTermViewed: _onTermViewed,
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              ChoiceChip(
-                label: const Text('있음'),
-                selected: selection == SelectionState.yes,
-                onSelected: (_) => onSelection(SelectionState.yes),
-              ),
-              ChoiceChip(
-                label: const Text('없음'),
-                selected: selection == SelectionState.no,
-                onSelected: (_) {
-                  onSelection(SelectionState.no);
-                  _syncController(keyName, 0);
-                  onAmount(
-                    const NumericField(
-                      value: 0,
-                      status: PrecisionValueStatus.complete,
-                    ),
-                  );
-                },
-              ),
-              ChoiceChip(
-                label: const Text('모르겠어요'),
-                selected: selection == SelectionState.unknown,
-                onSelected: (_) {
-                  onSelection(SelectionState.unknown);
-                  _syncController(keyName, 0);
-                  onAmount(
-                    const NumericField(
-                      value: 0,
-                      status: PrecisionValueStatus.estimatedZero,
-                    ),
-                  );
-                },
-              ),
+          const SizedBox(height: 12),
+          _buildNotionChips(
+            options: [
+              _ChipOption('있음', SelectionState.yes),
+              _ChipOption('없음', SelectionState.no),
+              _ChipOption('모르겠어요', SelectionState.unknown),
             ],
+            selectedValue: selection,
+            onSelected: (value) {
+              final sel = value as SelectionState;
+              onSelection(sel);
+              if (sel == SelectionState.no) {
+                _syncController(keyName, 0);
+                onAmount(
+                  const NumericField(
+                    value: 0,
+                    status: PrecisionValueStatus.complete,
+                  ),
+                );
+              } else if (sel == SelectionState.unknown) {
+                _syncController(keyName, 0);
+                onAmount(
+                  const NumericField(
+                    value: 0,
+                    status: PrecisionValueStatus.estimatedZero,
+                  ),
+                );
+              }
+            },
           ),
           if (selection == SelectionState.yes) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _amountField(
               keyName: keyName,
               value: amount.value,
@@ -1379,6 +1410,72 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Shared form widgets
+  // ---------------------------------------------------------------------------
+
+  /// Notion-style selection chips — replaces Material ChoiceChip
+  Widget _buildNotionChips({
+    required List<_ChipOption> options,
+    required Object? selectedValue,
+    required ValueChanged<Object?> onSelected,
+  }) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((option) {
+        final isSelected = option.value == selectedValue;
+        return GestureDetector(
+          onTap: () => onSelected(option.value),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primaryLight : AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected ? AppColors.primary : AppColors.border,
+              ),
+            ),
+            child: Text(
+              option.label,
+              style: AppTypography.textTheme.bodyMedium?.copyWith(
+                color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Notion-style outlined button — consistent 44px touch target
+  Widget _notionOutlinedButton({
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      height: 40,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          side: const BorderSide(color: AppColors.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTypography.textTheme.bodySmall?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _amountField({
     required String keyName,
     required int? value,
@@ -1388,45 +1485,39 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     bool isCount = false,
   }) {
     final controller = _controllerFor(keyName, value, isCount: isCount);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (statusLabel != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              statusLabel,
-              style: AppTypography.textTheme.labelMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            if (!isCount) _ThousandsSeparatorFormatter(),
-          ],
-          onChanged: (text) {
-            final parsed = _parseAmount(text);
-            if (parsed == null) {
-              onChanged(NumericField.missing);
-              return;
-            }
-            onChanged(
-              NumericField(
-                value: parsed,
-                status: PrecisionValueStatus.complete,
-              ),
-            );
-          },
-          decoration: InputDecoration(
-            hintText: hint,
-            suffixText: isCount ? '명' : '원',
-          ),
-        ),
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        if (!isCount) _ThousandsSeparatorFormatter(),
       ],
+      onChanged: (text) {
+        final parsed = _parseAmount(text);
+        if (parsed == null) {
+          onChanged(NumericField.missing);
+          return;
+        }
+        onChanged(
+          NumericField(
+            value: parsed,
+            status: PrecisionValueStatus.complete,
+          ),
+        );
+      },
+      decoration: InputDecoration(
+        hintText: hint,
+        suffixText: isCount ? '명' : '원',
+        // Show status inline as a prefix icon badge
+        prefixIcon: statusLabel != null
+            ? Padding(
+                padding: const EdgeInsets.only(left: 12, right: 4),
+                child: _StatusBadge(label: statusLabel),
+              )
+            : null,
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 0, minHeight: 0),
+      ),
     );
   }
 
@@ -1506,6 +1597,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Business logic (unchanged)
+  // ---------------------------------------------------------------------------
+
   bool _canContinueStep(int step) {
     if (step == 0) return true;
     if (step == 1) {
@@ -1544,8 +1639,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
         : 0;
     final otherPrepayment =
         _draft.otherPrepaymentSelection == SelectionState.yes
-        ? _draft.otherPrepayment.safeValue
-        : 0;
+            ? _draft.otherPrepayment.safeValue
+            : 0;
     return labor + pension + financial + other + midterm + otherPrepayment;
   }
 
@@ -1557,8 +1652,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     final text = value == null
         ? ''
         : isCount
-        ? '$value'
-        : Formatters.formatWon(value);
+            ? '$value'
+            : Formatters.formatWon(value);
     final controller = _controllers.putIfAbsent(
       key,
       () => TextEditingController(text: text),
@@ -1572,8 +1667,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     final text = value == null
         ? ''
         : isCount
-        ? '$value'
-        : Formatters.formatWon(value);
+            ? '$value'
+            : Formatters.formatWon(value);
     if (controller.text == text) return;
     controller.text = text;
     controller.selection = TextSelection.collapsed(offset: text.length);
@@ -1599,8 +1694,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     required PrecisionTaxDraft Function(
       PrecisionTaxDraft draft,
       NumericField field,
-    )
-    apply,
+    ) apply,
   }) {
     _syncController(keyName, field.value);
     _updateDraft((draft) => apply(draft, field));
@@ -1613,6 +1707,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
   Future<int?> _showIncomeRangePicker(String title) async {
     return showModalBottomSheet<int>(
       context: context,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -1682,7 +1777,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
       case _IncomeKind.pension:
         return draft.copyWith(pensionIncome: updater(draft.pensionIncome));
       case _IncomeKind.financial:
-        return draft.copyWith(financialIncome: updater(draft.financialIncome));
+        return draft.copyWith(
+            financialIncome: updater(draft.financialIncome));
       case _IncomeKind.other:
         return draft.copyWith(otherIncome: updater(draft.otherIncome));
     }
@@ -1711,12 +1807,25 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
   }
 }
 
+// =============================================================================
+// Private helper data classes
+// =============================================================================
+
+class _ChipOption {
+  final String label;
+  final Object? value;
+  const _ChipOption(this.label, this.value);
+}
+
 class _IncomeRangeOption {
   final String label;
   final int value;
-
   const _IncomeRangeOption({required this.label, required this.value});
 }
+
+// =============================================================================
+// Private widget components
+// =============================================================================
 
 class _IncomeToggleRow extends StatelessWidget {
   final String label;
@@ -1742,18 +1851,41 @@ class _IncomeToggleRow extends StatelessWidget {
   }
 }
 
+/// Inline status badge shown inside TextField prefix
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  const _StatusBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        color: AppColors.primaryLight,
+      ),
+      child: Text(
+        label,
+        style: AppTypography.textTheme.labelSmall?.copyWith(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _ScoreChip extends StatelessWidget {
   final String label;
-
   const _ScoreChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         label,
@@ -1768,16 +1900,15 @@ class _ScoreChip extends StatelessWidget {
 
 class _NoticePill extends StatelessWidget {
   final String text;
-
   const _NoticePill({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.warningLight,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         text,
@@ -1830,7 +1961,7 @@ class _ActionTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           TextButton(onPressed: onTap, child: Text(buttonText)),
         ],
       ),
