@@ -4,6 +4,8 @@ import '../models/deemed_purchase.dart';
 import '../models/user_profile.dart';
 import '../models/business.dart';
 import '../models/tax_prediction.dart';
+import '../models/vat_breakdown.dart';
+import '../models/income_tax_breakdown.dart';
 
 class TaxCalculator {
   TaxCalculator._();
@@ -22,56 +24,22 @@ class TaxCalculator {
     required String period,
     int filledMonths = 6,
     int totalPeriodMonths = 6,
+    int cardCreditUsedThisYear = 0,
+    DateTime? asOf,
   }) {
-    // 외삽 계수: 입력된 월 → 반기(6개월) 전체 추정
-    final scale = (filledMonths > 0 && filledMonths < totalPeriodMonths)
-        ? totalPeriodMonths / filledMonths
-        : 1.0;
-
-    // 반기 합산 (외삽 적용)
-    final rawSales = salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
-    final totalSales = (rawSales * scale).round();
-    final rawCardSales = salesList.fold<int>(
-      0,
-      (sum, s) => sum + (s.cardSales ?? (s.totalSales * 0.75).round()),
+    final breakdown = computeVatBreakdown(
+      business: business,
+      salesList: salesList,
+      expensesList: expensesList,
+      deemedPurchases: deemedPurchases,
+      filledMonths: filledMonths,
+      totalPeriodMonths: totalPeriodMonths,
+      cardCreditUsedThisYear: cardCreditUsedThisYear,
+      asOf: asOf,
     );
-    final totalCardSales = (rawCardSales * scale).round();
-    final rawCashReceiptSales = salesList.fold<int>(
-      0,
-      (sum, s) => sum + (s.cashReceiptSales ?? (s.totalSales * 0.10).round()),
-    );
-    final totalCashReceiptSales = (rawCashReceiptSales * scale).round();
-    final rawExpenses = expensesList.fold<int>(
-      0,
-      (sum, e) => sum + (e.taxableExpenses ?? e.totalExpenses),
-    );
-    final totalExpenses = (rawExpenses * scale).round();
-    final rawDeemedAmount = deemedPurchases.fold<int>(
-      0,
-      (sum, d) => sum + d.amount,
-    );
-    final totalDeemedAmount = (rawDeemedAmount * scale).round();
-
-    // ① 매출세액 = 총 매출 ÷ 11
-    final salesTax =
-        business.vatInclusive ? totalSales ~/ 11 : (totalSales * 0.1).round();
-
-    // ② 매입세액 = 과세 매입 ÷ 11
-    final purchaseTax = totalExpenses ~/ 11;
-
-    // ③ 의제매입세액공제
-    final annualSales = totalSales * 2; // 반기 → 연간 추정
-    final limitRate = _getDeemedLimitRate(annualSales);
-    final deemedLimit = (totalDeemedAmount * limitRate).round();
-    final deemedCredit = (deemedLimit * 9 / 109).round();
-
-    // ④ 신카발행세액공제 = (카드+현금영수증) × 1.3%, 반기 최대 500만
-    final cardCreditBase = totalCardSales + totalCashReceiptSales;
-    final cardCredit =
-        (cardCreditBase * 0.013).round().clamp(0, 5000000);
 
     // ⑤ 납부세액
-    final estimated = salesTax - purchaseTax - deemedCredit - cardCredit;
+    final estimated = breakdown.estimatedVat;
     final midPoint = estimated.clamp(0, estimated.abs() * 3);
 
     // 정확도에 따라 범위 조정
@@ -85,6 +53,95 @@ class TaxCalculator {
       predictedMin: min < 0 ? 0 : min,
       predictedMax: max < 0 ? 0 : max,
       accuracyScore: accuracyScore,
+    );
+  }
+
+  static VatBreakdown computeVatBreakdown({
+    required Business business,
+    required List<MonthlySales> salesList,
+    required List<MonthlyExpenses> expensesList,
+    required List<DeemedPurchase> deemedPurchases,
+    int filledMonths = 6,
+    int totalPeriodMonths = 6,
+    int cardCreditUsedThisYear = 0,
+    DateTime? asOf,
+  }) {
+    final asOfDate = asOf ?? DateTime.now();
+
+    // 외삽 계수: 입력된 월 → 과세기간(기본 6개월) 전체 추정
+    final scale = (filledMonths > 0 && filledMonths < totalPeriodMonths)
+        ? totalPeriodMonths / filledMonths
+        : 1.0;
+
+    // 과세기간 합산 (외삽 적용)
+    final rawSales = salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
+    final totalSales = (rawSales * scale).round();
+    final rawCardSales = salesList.fold<int>(
+      0,
+      (sum, s) => sum + (s.cardSales ?? (s.totalSales * 0.75).round()),
+    );
+    final cardSales = (rawCardSales * scale).round();
+    final rawCashReceiptSales = salesList.fold<int>(
+      0,
+      (sum, s) => sum + (s.cashReceiptSales ?? (s.totalSales * 0.10).round()),
+    );
+    final cashReceiptSales = (rawCashReceiptSales * scale).round();
+    final rawExpenses = expensesList.fold<int>(
+      0,
+      (sum, e) => sum + (e.taxableExpenses ?? e.totalExpenses),
+    );
+    final taxableExpenses = (rawExpenses * scale).round();
+    final rawDeemedAmount =
+        deemedPurchases.fold<int>(0, (sum, d) => sum + d.amount);
+    final deemedPurchaseAmount = (rawDeemedAmount * scale).round();
+
+    // ① 매출세액 = (VAT 포함) 총 매출 ÷ 11
+    final salesTax = business.vatInclusive
+        ? totalSales ~/ 11
+        : (totalSales * 0.1).round();
+
+    // 과세표준(공급가액)
+    final taxBase = business.vatInclusive ? totalSales - salesTax : totalSales;
+
+    // ② 매입세액 = 과세 매입 ÷ 11
+    final purchaseTax = taxableExpenses ~/ 11;
+
+    // ③ 의제매입세액공제 = min(면세매입액, 과세표준×한도율) × 공제율
+    final deemedLimitRate =
+        _getDeemedLimitRate(business: business, taxBase: taxBase, asOf: asOfDate);
+    final deemedCreditRate =
+        _getDeemedCreditRate(business: business, taxBase: taxBase, asOf: asOfDate);
+    final deemedCapBase = (taxBase * deemedLimitRate).round();
+    final deemedBase =
+        deemedPurchaseAmount < deemedCapBase ? deemedPurchaseAmount : deemedCapBase;
+    final deemedCredit = _applyFractionRound(deemedBase, deemedCreditRate);
+
+    // ④ 신용카드 등 발행세액공제 = (카드+현금영수증) × 공제율, 연간 한도 적용
+    final cardCreditBase = cardSales + cashReceiptSales;
+    final cardCreditBaseVatIncluded =
+        business.vatInclusive ? cardCreditBase : (cardCreditBase * 1.1).round();
+    final cardRate = _getCardIssuanceCreditRate(asOf: asOfDate);
+    final annualCap = _getCardIssuanceCreditAnnualCap(asOf: asOfDate);
+    final remainingCap =
+        (annualCap - cardCreditUsedThisYear).clamp(0, annualCap);
+    final cardCreditRaw = _applyFractionRound(cardCreditBaseVatIncluded, cardRate);
+    final cardCredit = cardCreditRaw < remainingCap ? cardCreditRaw : remainingCap;
+
+    // ⑤ 납부세액
+    final estimatedVat = salesTax - purchaseTax - deemedCredit - cardCredit;
+
+    return VatBreakdown(
+      totalSales: totalSales,
+      cardSales: cardSales,
+      cashReceiptSales: cashReceiptSales,
+      taxableExpenses: taxableExpenses,
+      deemedPurchaseAmount: deemedPurchaseAmount,
+      salesTax: salesTax,
+      purchaseTax: purchaseTax,
+      deemedPurchaseCredit: deemedCredit,
+      cardIssuanceCredit: cardCredit,
+      estimatedVat: estimatedVat,
+      taxBase: taxBase,
     );
   }
 
@@ -103,38 +160,16 @@ class TaxCalculator {
     int filledMonths = 12,
     int totalPeriodMonths = 12,
   }) {
-    // 외삽 계수: 입력된 월 → 연간(12개월) 전체 추정
-    final scale = (filledMonths > 0 && filledMonths < totalPeriodMonths)
-        ? totalPeriodMonths / filledMonths
-        : 1.0;
+    final breakdown = computeIncomeTaxBreakdown(
+      business: business,
+      salesList: salesList,
+      expensesList: expensesList,
+      profile: profile,
+      filledMonths: filledMonths,
+      totalPeriodMonths: totalPeriodMonths,
+    );
 
-    // 연간 매출 (VAT 제외, 외삽 적용)
-    final totalSalesRaw =
-        salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
-    final scaledSales = (totalSalesRaw * scale).round();
-    final annualRevenue =
-        business.vatInclusive ? (scaledSales / 1.1).round() : scaledSales;
-
-    int taxableIncome;
-
-    if (profile.hasBookkeeping) {
-      // 기장 신고: 매출 - 실제 경비
-      final rawExpenses =
-          expensesList.fold<int>(0, (sum, e) => sum + e.totalExpenses);
-      final totalExpenses = (rawExpenses * scale).round();
-      taxableIncome = annualRevenue - totalExpenses;
-    } else {
-      // 추계 신고: 매출 × (1 - 단순경비율)
-      final expenseRate = _getSimpleExpenseRate(business.businessType);
-      taxableIncome = (annualRevenue * (1 - expenseRate)).round();
-    }
-
-    // 과세표준 = 소득 - 인적공제 - 노란우산공제
-    final taxBase = taxableIncome -
-        profile.personalDeduction -
-        profile.yellowUmbrellaAnnual;
-
-    if (taxBase <= 0) {
+    if (breakdown.taxBase <= 0) {
       return TaxPrediction(
         taxType: 'income_tax',
         period: period,
@@ -144,11 +179,7 @@ class TaxCalculator {
       );
     }
 
-    // 세율표 적용
-    final incomeTax = _applyTaxBracket(taxBase);
-    // 지방소득세 10%
-    final localTax = (incomeTax * 0.1).round();
-    final totalTax = incomeTax + localTax;
+    final totalTax = breakdown.totalTax;
 
     // 정확도에 따라 범위 조정
     final marginRate = _getMarginRate(accuracyScore);
@@ -161,6 +192,58 @@ class TaxCalculator {
       predictedMin: min < 0 ? 0 : min,
       predictedMax: max < 0 ? 0 : max,
       accuracyScore: accuracyScore,
+    );
+  }
+
+  static IncomeTaxBreakdown computeIncomeTaxBreakdown({
+    required Business business,
+    required List<MonthlySales> salesList,
+    required List<MonthlyExpenses> expensesList,
+    required UserProfile profile,
+    int filledMonths = 12,
+    int totalPeriodMonths = 12,
+  }) {
+    // 외삽 계수: 입력된 월 → 연간(12개월) 전체 추정
+    final scale = (filledMonths > 0 && filledMonths < totalPeriodMonths)
+        ? totalPeriodMonths / filledMonths
+        : 1.0;
+
+    // 연간 매출 (VAT 제외, 외삽 적용)
+    final totalSalesRaw =
+        salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
+    final scaledSales = (totalSalesRaw * scale).round();
+    final annualRevenue =
+        business.vatInclusive ? (scaledSales / 1.1).round() : scaledSales;
+
+    int expenses;
+    double? simpleExpenseRate;
+    if (profile.hasBookkeeping) {
+      final rawExpenses =
+          expensesList.fold<int>(0, (sum, e) => sum + e.totalExpenses);
+      expenses = (rawExpenses * scale).round();
+    } else {
+      simpleExpenseRate = _getSimpleExpenseRate(business.businessType);
+      expenses = (annualRevenue * simpleExpenseRate).round();
+    }
+
+    final taxableIncome = annualRevenue - expenses;
+    final personalDeduction = profile.personalDeduction;
+    final yellowUmbrellaAnnual = profile.yellowUmbrellaAnnual;
+    final taxBase = taxableIncome - personalDeduction - yellowUmbrellaAnnual;
+
+    final incomeTax = taxBase > 0 ? _applyTaxBracket(taxBase) : 0;
+    final localTax = (incomeTax * 0.1).round();
+
+    return IncomeTaxBreakdown(
+      annualRevenue: annualRevenue,
+      expenses: expenses,
+      taxableIncome: taxableIncome,
+      simpleExpenseRate: simpleExpenseRate,
+      personalDeduction: personalDeduction,
+      yellowUmbrellaAnnual: yellowUmbrellaAnnual,
+      taxBase: taxBase,
+      incomeTax: incomeTax,
+      localTax: localTax,
     );
   }
 
@@ -208,10 +291,61 @@ class TaxCalculator {
   // Private helpers
   // ============================================================
 
-  static double _getDeemedLimitRate(int annualSales) {
-    if (annualSales <= 200000000) return 0.65;
-    if (annualSales <= 400000000) return 0.60;
-    return 0.50;
+  static double _getDeemedLimitRate({
+    required Business business,
+    required int taxBase,
+    required DateTime asOf,
+  }) {
+    final specialEnd = DateTime(2027, 12, 31, 23, 59, 59);
+    final isSpecial = !asOf.isAfter(specialEnd);
+
+    if (isSpecial) {
+      if (business.businessType == 'restaurant' ||
+          business.businessType == 'cafe') {
+        if (taxBase <= 100000000) return 0.75;
+        if (taxBase <= 200000000) return 0.70;
+        return 0.60;
+      }
+
+      if (taxBase <= 200000000) return 0.65;
+      return 0.55;
+    }
+
+    if (taxBase <= 200000000) return 0.50;
+    return 0.40;
+  }
+
+  static _Fraction _getDeemedCreditRate({
+    required Business business,
+    required int taxBase,
+    required DateTime asOf,
+  }) {
+    final isRestaurant =
+        business.businessType == 'restaurant' || business.businessType == 'cafe';
+
+    if (!isRestaurant) return const _Fraction(2, 102);
+
+    final specialEnd = DateTime(2026, 12, 31, 23, 59, 59);
+    if (!asOf.isAfter(specialEnd) && taxBase <= 200000000) {
+      return const _Fraction(9, 109);
+    }
+    return const _Fraction(8, 108);
+  }
+
+  static _Fraction _getCardIssuanceCreditRate({required DateTime asOf}) {
+    final specialEnd = DateTime(2026, 12, 31, 23, 59, 59);
+    if (!asOf.isAfter(specialEnd)) return const _Fraction(13, 1000); // 1.3%
+    return const _Fraction(1, 100); // 1.0%
+  }
+
+  static int _getCardIssuanceCreditAnnualCap({required DateTime asOf}) {
+    final specialEnd = DateTime(2026, 12, 31, 23, 59, 59);
+    if (!asOf.isAfter(specialEnd)) return 10000000;
+    return 5000000;
+  }
+
+  static int _applyFractionRound(int amount, _Fraction rate) {
+    return ((amount * rate.numerator) / rate.denominator).round();
   }
 
   static double _getSimpleExpenseRate(String businessType) {
@@ -253,4 +387,11 @@ class TaxCalculator {
     if (accuracy >= 20) return 0.45;
     return 0.60;
   }
+}
+
+class _Fraction {
+  final int numerator;
+  final int denominator;
+
+  const _Fraction(this.numerator, this.denominator);
 }

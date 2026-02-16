@@ -6,6 +6,8 @@ import '../models/monthly_expenses.dart';
 import '../models/deemed_purchase.dart';
 import '../models/tax_prediction.dart';
 import '../models/user_profile.dart';
+import '../models/vat_breakdown.dart';
+import '../models/income_tax_breakdown.dart';
 import '../utils/tax_calculator.dart';
 import '../utils/formatters.dart';
 
@@ -304,6 +306,8 @@ class BusinessProvider extends ChangeNotifier {
         .where((d) => !d.yearMonth.isBefore(currentHalfStart))
         .toList();
 
+    final cardCreditUsedThisYear = _getCardCreditUsedThisYear(now);
+
     return TaxCalculator.calculateVat(
       business: _business,
       salesList: halfSales,
@@ -313,6 +317,38 @@ class BusinessProvider extends ChangeNotifier {
       period: period,
       filledMonths: halfSales.length.clamp(0, monthsInHalf),
       totalPeriodMonths: 6,
+      cardCreditUsedThisYear: cardCreditUsedThisYear,
+      asOf: now,
+    );
+  }
+
+  VatBreakdown get vatBreakdown {
+    final now = DateTime.now();
+    final currentHalfStart = now.month <= 6
+        ? DateTime(now.year, 1, 1)
+        : DateTime(now.year, 7, 1);
+    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
+
+    final halfSales =
+        _salesList.where((s) => !s.yearMonth.isBefore(currentHalfStart)).toList();
+    final halfExpenses = _expensesList
+        .where((e) => !e.yearMonth.isBefore(currentHalfStart))
+        .toList();
+    final halfDeemed = _deemedPurchases
+        .where((d) => !d.yearMonth.isBefore(currentHalfStart))
+        .toList();
+
+    final cardCreditUsedThisYear = _getCardCreditUsedThisYear(now);
+
+    return TaxCalculator.computeVatBreakdown(
+      business: _business,
+      salesList: halfSales,
+      expensesList: halfExpenses,
+      deemedPurchases: halfDeemed,
+      filledMonths: halfSales.length.clamp(0, monthsInHalf),
+      totalPeriodMonths: 6,
+      cardCreditUsedThisYear: cardCreditUsedThisYear,
+      asOf: now,
     );
   }
 
@@ -338,6 +374,63 @@ class BusinessProvider extends ChangeNotifier {
       filledMonths: yearSales.length.clamp(0, now.month),
       totalPeriodMonths: 12,
     );
+  }
+
+  IncomeTaxBreakdown get incomeTaxBreakdown {
+    final now = DateTime.now();
+    final yearStart = DateTime(now.year, 1, 1);
+
+    final yearSales =
+        _salesList.where((s) => !s.yearMonth.isBefore(yearStart)).toList();
+    final yearExpenses = _expensesList
+        .where((e) => !e.yearMonth.isBefore(yearStart))
+        .toList();
+
+    return TaxCalculator.computeIncomeTaxBreakdown(
+      business: _business,
+      salesList: yearSales,
+      expensesList: yearExpenses,
+      profile: _profile,
+      filledMonths: yearSales.length.clamp(0, now.month),
+      totalPeriodMonths: 12,
+    );
+  }
+
+  int _getCardCreditUsedThisYear(DateTime now) {
+    // 2기(7~12월)에는 1기(1~6월) 공제를 먼저 반영해서 연간 한도 초과를 방지
+    if (now.month <= 6) return 0;
+
+    final firstHalfStart = DateTime(now.year, 1, 1);
+    final secondHalfStart = DateTime(now.year, 7, 1);
+
+    final firstHalfSales = _salesList
+        .where((s) =>
+            !s.yearMonth.isBefore(firstHalfStart) &&
+            s.yearMonth.isBefore(secondHalfStart))
+        .toList();
+    final firstHalfExpenses = _expensesList
+        .where((e) =>
+            !e.yearMonth.isBefore(firstHalfStart) &&
+            e.yearMonth.isBefore(secondHalfStart))
+        .toList();
+    final firstHalfDeemed = _deemedPurchases
+        .where((d) =>
+            !d.yearMonth.isBefore(firstHalfStart) &&
+            d.yearMonth.isBefore(secondHalfStart))
+        .toList();
+
+    final firstHalfBreakdown = TaxCalculator.computeVatBreakdown(
+      business: _business,
+      salesList: firstHalfSales,
+      expensesList: firstHalfExpenses,
+      deemedPurchases: firstHalfDeemed,
+      filledMonths: firstHalfSales.length.clamp(0, 6),
+      totalPeriodMonths: 6,
+      cardCreditUsedThisYear: 0,
+      asOf: now,
+    );
+
+    return firstHalfBreakdown.cardIssuanceCredit;
   }
 
   /// 반기 총 매출

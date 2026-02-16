@@ -64,9 +64,23 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
     return existing.isNotEmpty ? existing.first.amount : null;
   }
 
-  /// Simple VAT impact estimate: deemed purchase deduction = amount * 2/102
-  int _estimateVatSavings(int amount) {
-    return (amount * 2 / 102).round();
+  /// 간단 절감 효과 추정치 (한도 미반영, 공제율만 적용)
+  int _estimateVatSavings(BusinessProvider provider, int amount) {
+    final now = DateTime.now();
+    final business = provider.business;
+    final taxBase = provider.vatBreakdown.taxBase;
+
+    final isRestaurant =
+        business.businessType == 'restaurant' || business.businessType == 'cafe';
+    if (!isRestaurant) {
+      return (amount * 2 / 102).round();
+    }
+
+    final specialEnd = DateTime(2026, 12, 31, 23, 59, 59);
+    final useNineOver109 = !now.isAfter(specialEnd) && taxBase <= 200000000;
+    return useNineOver109
+        ? (amount * 9 / 109).round()
+        : (amount * 8 / 108).round();
   }
 
   void _onSave() {
@@ -95,10 +109,11 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<BusinessProvider>();
     final prevAmount = _getPreviousMonthAmount();
     final vatSavings =
         _selectedAmount != null && _selectedAmount! > 0
-            ? _estimateVatSavings(_selectedAmount!)
+            ? _estimateVatSavings(provider, _selectedAmount!)
             : null;
 
     return Scaffold(

@@ -143,59 +143,10 @@ class TaxDetailScreen extends StatelessWidget {
   }
 
   Widget _buildVatBreakdown(BusinessProvider provider) {
-    final now = DateTime.now();
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
-
-    final salesList = provider.salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
-        .toList();
-    final expensesList = provider.expensesList
-        .where((e) => !e.yearMonth.isBefore(currentHalfStart))
-        .toList();
-    final deemedPurchases = provider.deemedPurchases
-        .where((d) => !d.yearMonth.isBefore(currentHalfStart))
-        .toList();
-
-    final totalSales =
-        salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
-    final totalCardSales = salesList.fold<int>(
-      0,
-      (sum, s) => sum + (s.cardSales ?? (s.totalSales * 0.75).round()),
-    );
-    final totalCashReceiptSales = salesList.fold<int>(
-      0,
-      (sum, s) =>
-          sum + (s.cashReceiptSales ?? (s.totalSales * 0.10).round()),
-    );
-    final otherCashSales = totalSales - totalCardSales - totalCashReceiptSales;
-
-    final totalExpenses = expensesList.fold<int>(
-      0,
-      (sum, e) => sum + (e.taxableExpenses ?? e.totalExpenses),
-    );
-    final totalDeemedAmount =
-        deemedPurchases.fold<int>(0, (sum, d) => sum + d.amount);
-
-    final business = provider.business;
-    final salesTax = business.vatInclusive
-        ? totalSales ~/ 11
-        : (totalSales * 0.1).round();
-    final purchaseTax = totalExpenses ~/ 11;
-
-    final annualSales = totalSales * 2;
-    final limitRate = annualSales <= 200000000
-        ? 0.65
-        : annualSales <= 400000000
-            ? 0.60
-            : 0.50;
-    final deemedLimit = (totalDeemedAmount * limitRate).round();
-    final deemedCredit = (deemedLimit * 9 / 109).round();
-
-    final cardCreditBase = totalCardSales + totalCashReceiptSales;
-    final cardCredit =
-        (cardCreditBase * 0.013).round().clamp(0, 5000000);
+    final breakdown = provider.vatBreakdown;
+    final otherCashSales = breakdown.otherCashSales;
+    final otherCashSalesSafe =
+        otherCashSales < 0 ? 0 : otherCashSales;
 
     return NotionCard(
       child: Column(
@@ -204,21 +155,21 @@ class TaxDetailScreen extends StatelessWidget {
           // Sales tax
           _lineItem(
             '\uB9E4\uCD9C\uC138\uC561',
-            '+${Formatters.toManWonWithUnit(salesTax)}',
+            '+${Formatters.toManWonWithUnit(breakdown.salesTax)}',
             isBold: true,
           ),
           const SizedBox(height: 6),
-          _subItem('\u251C', '\uCE74\uB4DC\uB9E4\uCD9C', Formatters.toManWon(totalCardSales)),
+          _subItem('\u251C', '\uCE74\uB4DC\uB9E4\uCD9C', Formatters.toManWon(breakdown.cardSales)),
           _subItem(
-              '\u251C', '\uD604\uAE08\uC601\uC218\uC99D', Formatters.toManWon(totalCashReceiptSales)),
+              '\u251C', '\uD604\uAE08\uC601\uC218\uC99D', Formatters.toManWon(breakdown.cashReceiptSales)),
           _subItem('\u2514', '\uAE30\uD0C0\uD604\uAE08',
-              Formatters.toManWon(otherCashSales.clamp(0, otherCashSales.abs()))),
+              Formatters.toManWon(otherCashSalesSafe)),
           const SizedBox(height: 16),
 
           // Purchase tax
           _lineItem(
             '\uACFC\uC138 \uB9E4\uC785\uC138\uC561',
-            '-${Formatters.toManWonWithUnit(purchaseTax)}',
+            '-${Formatters.toManWonWithUnit(breakdown.purchaseTax)}',
             isBold: true,
             color: AppColors.success,
           ),
@@ -227,7 +178,7 @@ class TaxDetailScreen extends StatelessWidget {
           // Deemed credit
           _lineItem(
             '\uC758\uC81C\uB9E4\uC785\uC138\uC561\uACF5\uC81C',
-            '-${Formatters.toManWonWithUnit(deemedCredit)}',
+            '-${Formatters.toManWonWithUnit(breakdown.deemedPurchaseCredit)}',
             isBold: true,
             color: AppColors.success,
           ),
@@ -236,7 +187,7 @@ class TaxDetailScreen extends StatelessWidget {
           // Card credit
           _lineItem(
             '\uC2E0\uCE74\uBC1C\uD589\uC138\uC561\uACF5\uC81C',
-            '-${Formatters.toManWonWithUnit(cardCredit)}',
+            '-${Formatters.toManWonWithUnit(breakdown.cardIssuanceCredit)}',
             isBold: true,
             color: AppColors.success,
           ),
@@ -246,65 +197,39 @@ class TaxDetailScreen extends StatelessWidget {
   }
 
   Widget _buildIncomeTaxBreakdown(BusinessProvider provider) {
-    final now = DateTime.now();
-    final yearStart = DateTime(now.year, 1, 1);
-
-    final salesList = provider.salesList
-        .where((s) => !s.yearMonth.isBefore(yearStart))
-        .toList();
-    final expensesList = provider.expensesList
-        .where((e) => !e.yearMonth.isBefore(yearStart))
-        .toList();
+    final breakdown = provider.incomeTaxBreakdown;
     final profile = provider.profile;
-    final business = provider.business;
 
-    final totalSalesRaw =
-        salesList.fold<int>(0, (sum, s) => sum + s.totalSales);
-    final annualRevenue = business.vatInclusive
-        ? (totalSalesRaw / 1.1).round()
-        : totalSalesRaw;
-
-    int expenses;
     String expenseLabel;
     if (profile.hasBookkeeping) {
-      expenses =
-          expensesList.fold<int>(0, (sum, e) => sum + e.totalExpenses);
       expenseLabel = '\uD544\uC694\uACBD\uBE44 (\uAE30\uC7A5)';
     } else {
-      final rate = _getSimpleExpenseRate(business.businessType);
-      expenses = (annualRevenue * rate).round();
+      final rate = breakdown.simpleExpenseRate ?? 0;
       expenseLabel = '\uD544\uC694\uACBD\uBE44 (\uCD94\uACC4 ${(rate * 100).toStringAsFixed(1)}%)';
     }
 
-    final income = annualRevenue - expenses;
-    final personalDeduction = profile.personalDeduction;
-    final yellowUmbrellaAnnual = profile.yellowUmbrellaAnnual;
-    final taxBase = (income - personalDeduction - yellowUmbrellaAnnual)
-        .clamp(0, income * 10);
-
-    final incomeTax = _applyTaxBracket(taxBase);
-    final localTax = (incomeTax * 0.1).round();
+    final taxBase = breakdown.taxBase < 0 ? 0 : breakdown.taxBase;
 
     return NotionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _lineItem('\uCD1D\uC218\uC785\uAE08\uC561', Formatters.toManWonWithUnit(annualRevenue),
+          _lineItem('\uCD1D\uC218\uC785\uAE08\uC561', Formatters.toManWonWithUnit(breakdown.annualRevenue),
               isBold: true),
           const SizedBox(height: 10),
-          _lineItem('- $expenseLabel', Formatters.toManWonWithUnit(expenses),
+          _lineItem('- $expenseLabel', Formatters.toManWonWithUnit(breakdown.expenses),
               color: AppColors.success),
           const Divider(color: AppColors.border, height: 24),
-          _lineItem('= \uC18C\uB4DD\uAE08\uC561', Formatters.toManWonWithUnit(income),
+          _lineItem('= \uC18C\uB4DD\uAE08\uC561', Formatters.toManWonWithUnit(breakdown.taxableIncome),
               isBold: true),
           const SizedBox(height: 10),
           _lineItem('- \uC778\uC801\uACF5\uC81C',
-              Formatters.toManWonWithUnit(personalDeduction),
+              Formatters.toManWonWithUnit(breakdown.personalDeduction),
               color: AppColors.success),
-          if (yellowUmbrellaAnnual > 0) ...[
+          if (breakdown.yellowUmbrellaAnnual > 0) ...[
             const SizedBox(height: 6),
             _lineItem('- \uB178\uB780\uC6B0\uC0B0\uACF5\uC81C',
-                Formatters.toManWonWithUnit(yellowUmbrellaAnnual),
+                Formatters.toManWonWithUnit(breakdown.yellowUmbrellaAnnual),
                 color: AppColors.success),
           ],
           const Divider(color: AppColors.border, height: 24),
@@ -312,11 +237,11 @@ class TaxDetailScreen extends StatelessWidget {
               '= \uACFC\uC138\uD45C\uC900', Formatters.toManWonWithUnit(taxBase),
               isBold: true),
           const SizedBox(height: 10),
-          _lineItem('\uC138\uC728 \uC801\uC6A9 \u2192', Formatters.toManWonWithUnit(incomeTax)),
+          _lineItem('\uC138\uC728 \uC801\uC6A9 \u2192', Formatters.toManWonWithUnit(breakdown.incomeTax)),
           const SizedBox(height: 6),
           _lineItem(
             '+ \uC9C0\uBC29\uC18C\uB4DD\uC138 (10%)',
-            Formatters.toManWonWithUnit(localTax),
+            Formatters.toManWonWithUnit(breakdown.localTax),
           ),
         ],
       ),
@@ -388,8 +313,8 @@ class TaxDetailScreen extends StatelessWidget {
       '\uBD80\uAC00\uC138 = \uB9E4\uCD9C\uC138\uC561 - \uB9E4\uC785\uC138\uC561 - \uC758\uC81C\uB9E4\uC785\uC138\uC561\uACF5\uC81C - \uC2E0\uCE74\uBC1C\uD589\uC138\uC561\uACF5\uC81C\n\n'
       '\u2022 \uB9E4\uCD9C\uC138\uC561 = \uCD1D\uB9E4\uCD9C \u00F7 11 (VAT \uD3EC\uD568 \uAE30\uC900)\n'
       '\u2022 \uB9E4\uC785\uC138\uC561 = \uACFC\uC138 \uB9E4\uC785 \u00F7 11\n'
-      '\u2022 \uC758\uC81C\uB9E4\uC785 = \uB18D\uC218\uC0B0\uBB3C \uB9E4\uC785\uC561 \u00D7 \uD55C\uB3C4\uC728 \u00D7 9/109\n'
-      '\u2022 \uC2E0\uCE74\uACF5\uC81C = (\uCE74\uB4DC+\uD604\uAE08\uC601\uC218\uC99D) \u00D7 1.3%, \uCD5C\uB300 500\uB9CC',
+      '\u2022 \uC758\uC81C\uB9E4\uC785 = min(\uBA74\uC138\uB9E4\uC785\uC561, \uACFC\uC138\uD45C\uC900\u00D7\uD55C\uB3C4\uC728) \u00D7 \uACF5\uC81C\uC728 (9/109 \uB610\uB294 8/108)\n'
+      '\u2022 \uC2E0\uCE74\uACF5\uC81C = (\uCE74\uB4DC+\uD604\uAE08\uC601\uC218\uC99D) \u00D7 \uACF5\uC81C\uC728, \uC5F0\uAC04 \uD55C\uB3C4 1\uCC9C\uB9CC (2026.12.31\uAE4C\uC9C0)',
       style: AppTypography.textTheme.bodySmall?.copyWith(
         color: AppColors.textSecondary,
         height: 1.8,
@@ -474,36 +399,5 @@ class TaxDetailScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  double _getSimpleExpenseRate(String businessType) {
-    switch (businessType) {
-      case 'restaurant':
-        return 0.897;
-      case 'cafe':
-        return 0.878;
-      default:
-        return 0.897;
-    }
-  }
-
-  int _applyTaxBracket(int taxBase) {
-    if (taxBase <= 14000000) {
-      return (taxBase * 0.06).round();
-    } else if (taxBase <= 50000000) {
-      return (taxBase * 0.15 - 1260000).round();
-    } else if (taxBase <= 88000000) {
-      return (taxBase * 0.24 - 5760000).round();
-    } else if (taxBase <= 150000000) {
-      return (taxBase * 0.35 - 15440000).round();
-    } else if (taxBase <= 300000000) {
-      return (taxBase * 0.38 - 19940000).round();
-    } else if (taxBase <= 500000000) {
-      return (taxBase * 0.40 - 25940000).round();
-    } else if (taxBase <= 1000000000) {
-      return (taxBase * 0.42 - 35940000).round();
-    } else {
-      return (taxBase * 0.45 - 65940000).round();
-    }
   }
 }
