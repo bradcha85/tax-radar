@@ -9,6 +9,7 @@ import '../../utils/formatters.dart';
 import '../../utils/tax_calculator.dart';
 import '../../models/tax_prediction.dart';
 import '../../widgets/notion_card.dart';
+import '../../widgets/glossary_help_text.dart';
 
 class SimulatorScreen extends StatefulWidget {
   const SimulatorScreen({super.key});
@@ -58,11 +59,23 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '\uD604\uC7AC \uC608\uC0C1 \uBD80\uAC00\uC138',
-                    style: AppTypography.textTheme.titleSmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final style = AppTypography.textTheme.titleSmall
+                          ?.copyWith(color: AppColors.textSecondary);
+                      return Row(
+                        children: [
+                          Text('\uD604\uC7AC \uC608\uC0C1', style: style),
+                          const SizedBox(width: 6),
+                          GlossaryHelpText(
+                            label: '\uBD80\uAC00\uC138',
+                            termId: 'V01',
+                            style: style,
+                            dense: true,
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -177,11 +190,13 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
                   _resultRow(
                     '\uBD80\uAC00\uC138',
                     '${Formatters.toManWon(simVat.predictedMin)} ~ ${Formatters.toManWonWithUnit(simVat.predictedMax)}',
+                    termId: 'V01',
                   ),
                   const SizedBox(height: 12),
                   _resultRow(
                     '\uC885\uC18C\uC138',
                     '${Formatters.toManWon(simIncome.predictedMin)} ~ ${Formatters.toManWonWithUnit(simIncome.predictedMax)}',
+                    termId: 'T01',
                   ),
                   const Divider(color: AppColors.border, height: 24),
                   Text(
@@ -194,11 +209,13 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
                   _diffRow(
                     '\uBD80\uAC00\uC138',
                     (vatDiffMin + vatDiffMax) ~/ 2,
+                    termId: 'V01',
                   ),
                   const SizedBox(height: 4),
                   _diffRow(
                     '\uC885\uC18C\uC138',
                     (incomeDiffMin + incomeDiffMax) ~/ 2,
+                    termId: 'T01',
                   ),
                 ],
               ),
@@ -228,26 +245,46 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
     );
   }
 
-  Widget _resultRow(String label, String value) {
+  Widget _resultRow(String label, String value, {String? termId}) {
+    final labelWidget = termId == null
+        ? Text(label, style: AppTypography.textTheme.bodyMedium)
+        : GlossaryHelpText(
+            label: label,
+            termId: termId,
+            style: AppTypography.textTheme.bodyMedium,
+            dense: true,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          );
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppTypography.textTheme.bodyMedium),
+        Expanded(child: labelWidget),
         Text(value, style: AppTypography.amountSmall),
       ],
     );
   }
 
-  Widget _diffRow(String label, int diff) {
+  Widget _diffRow(String label, int diff, {String? termId}) {
     final isPositive = diff > 0;
     final color = isPositive ? AppColors.danger : AppColors.success;
     final prefix = isPositive ? '+' : '';
     final text = '$prefix${Formatters.toManWon(diff)}';
+    final labelWidget = termId == null
+        ? Text(label, style: AppTypography.caption)
+        : GlossaryHelpText(
+            label: label,
+            termId: termId,
+            style: AppTypography.caption,
+            dense: true,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppTypography.caption),
+        Expanded(child: labelWidget),
         Text(
           text,
           style: AppTypography.textTheme.labelMedium?.copyWith(

@@ -11,6 +11,7 @@ import '../../utils/formatters.dart';
 import '../../utils/precision_tax_engine.dart';
 import '../../widgets/notion_card.dart';
 import '../../widgets/term_help_header.dart';
+import '../../widgets/glossary_help_text.dart';
 
 enum _IncomeKind { labor, pension, financial, other }
 
@@ -140,8 +141,11 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                     ),
                     child: Center(
                       child: isCompleted
-                          ? const Icon(Icons.check,
-                              size: 14, color: AppColors.textOnPrimary)
+                          ? const Icon(
+                              Icons.check,
+                              size: 14,
+                              color: AppColors.textOnPrimary,
+                            )
                           : Text(
                               '${index + 1}',
                               style: TextStyle(
@@ -163,8 +167,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                       color: isActive
                           ? AppColors.primary
                           : isCompleted
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -258,11 +262,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TermHelpHeader(
-                title: '귀속연도 선택',
-                termId: 'T21',
-                onTermViewed: _onTermViewed,
-              ),
+              TermHelpHeader(title: '귀속연도 선택', termId: 'T21'),
               const SizedBox(height: 12),
               _buildNotionChips(
                 options: [
@@ -282,8 +282,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               if (result.usesEstimatedYearConstants) ...[
                 const SizedBox(height: 8),
                 _NoticePill(
-                  text:
-                      '상수표가 없어 ${result.breakdown.appliedYear}년 기준으로 예상 계산 중',
+                  text: '상수표가 없어 ${result.breakdown.appliedYear}년 기준으로 예상 계산 중',
                 ),
               ],
             ],
@@ -294,11 +293,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TermHelpHeader(
-                title: '소득 구성 체크',
-                termId: 'T06',
-                onTermViewed: _onTermViewed,
-              ),
+              TermHelpHeader(title: '소득 구성 체크', termId: 'T06'),
               const SizedBox(height: 8),
               _IncomeToggleRow(
                 label: '사업소득 (필수)',
@@ -364,11 +359,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TermHelpHeader(
-                title: '사업소득 입력 모드',
-                termId: 'T07',
-                onTermViewed: _onTermViewed,
-              ),
+              TermHelpHeader(title: '사업소득 입력 모드', termId: 'T07'),
               const SizedBox(height: 12),
               SegmentedButton<BusinessInputMode>(
                 segments: const [
@@ -480,7 +471,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 title: '연간 매출',
                 termId: 'T07',
                 statusLabel: _draft.annualSales.status.label,
-                onTermViewed: _onTermViewed,
               ),
               const SizedBox(height: 12),
               _amountField(
@@ -521,7 +511,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 statusLabel: _draft.bookkeeping
                     ? _draft.annualExpenses.status.label
                     : '단순경비율',
-                onTermViewed: _onTermViewed,
               ),
               const SizedBox(height: 12),
               if (_draft.bookkeeping)
@@ -549,8 +538,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   onPressed: () {
                     final sales = _draft.annualSales.value ?? 0;
                     final estimated =
-                        (sales * _industryExpenseRatio(businessType))
-                            .round();
+                        (sales * _industryExpenseRatio(businessType)).round();
                     _setFieldDirect(
                       keyName: 'annual_expenses',
                       field: NumericField(
@@ -575,17 +563,12 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TermHelpHeader(
-            title: '월별 사업소득',
-            termId: 'T07',
-            onTermViewed: _onTermViewed,
-          ),
+          TermHelpHeader(title: '월별 사업소득', termId: 'T07'),
           const SizedBox(height: 8),
           SwitchListTile(
             value: _draft.fillMissingMonths,
             onChanged: (value) {
-              _updateDraft(
-                  (draft) => draft.copyWith(fillMissingMonths: value));
+              _updateDraft((draft) => draft.copyWith(fillMissingMonths: value));
             },
             contentPadding: EdgeInsets.zero,
             title: const Text('누락 월 추정 채우기'),
@@ -662,11 +645,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TermHelpHeader(
-              title: title,
-              termId: amountTermId,
-              onTermViewed: _onTermViewed,
-            ),
+            TermHelpHeader(title: title, termId: amountTermId),
             const SizedBox(height: 12),
             _amountField(
               keyName: amountKey,
@@ -675,8 +654,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               hint: '$title 소득금액(원)',
               statusLabel: input.incomeAmount.status.label,
               onChanged: (field) {
-                _updateIncome(
-                    kind, (old) => old.copyWith(incomeAmount: field));
+                _updateIncome(kind, (old) => old.copyWith(incomeAmount: field));
               },
             ),
             const SizedBox(height: 8),
@@ -749,11 +727,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TermHelpHeader(
-                title: '인적공제(가족)',
-                termId: 'T15',
-                onTermViewed: _onTermViewed,
-              ),
+              TermHelpHeader(title: '인적공제(가족)', termId: 'T15'),
               const SizedBox(height: 16),
               Text('배우자', style: AppTypography.textTheme.bodyMedium),
               const SizedBox(height: 8),
@@ -766,7 +740,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 onSelected: (value) {
                   _updateDraft(
                     (draft) => draft.copyWith(
-                        spouseSelection: value as SelectionState),
+                      spouseSelection: value as SelectionState,
+                    ),
                   );
                 },
               ),
@@ -778,8 +753,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 hint: '자녀 수(명)',
                 statusLabel: _draft.childrenCount.status.label,
                 onChanged: (field) {
-                  _updateDraft(
-                      (draft) => draft.copyWith(childrenCount: field));
+                  _updateDraft((draft) => draft.copyWith(childrenCount: field));
                 },
                 isCount: true,
               ),
@@ -791,8 +765,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 hint: '부양 부모 수(명)',
                 statusLabel: _draft.parentsCount.status.label,
                 onChanged: (field) {
-                  _updateDraft(
-                      (draft) => draft.copyWith(parentsCount: field));
+                  _updateDraft((draft) => draft.copyWith(parentsCount: field));
                 },
                 isCount: true,
               ),
@@ -804,11 +777,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TermHelpHeader(
-                title: '노란우산',
-                termId: 'T16',
-                onTermViewed: _onTermViewed,
-              ),
+              TermHelpHeader(title: '노란우산', termId: 'T16'),
               const SizedBox(height: 12),
               _buildNotionChips(
                 options: [
@@ -819,7 +788,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 onSelected: (value) {
                   _updateDraft(
                     (draft) => draft.copyWith(
-                        yellowUmbrellaSelection: value as SelectionState),
+                      yellowUmbrellaSelection: value as SelectionState,
+                    ),
                   );
                 },
               ),
@@ -829,8 +799,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   keyName: 'yellow_annual',
                   value: _draft.yellowUmbrellaAnnualPayment.value,
                   hint: '연간 납입액(원)',
-                  statusLabel:
-                      _draft.yellowUmbrellaAnnualPayment.status.label,
+                  statusLabel: _draft.yellowUmbrellaAnnualPayment.status.label,
                   onChanged: (field) {
                     _updateDraft(
                       (draft) =>
@@ -901,8 +870,11 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
-              Icon(Icons.info_outline,
-                  size: 18, color: AppColors.textSecondary),
+              Icon(
+                Icons.info_outline,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -924,13 +896,11 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           keyName: 'midterm_prepayment',
           onSelection: (selection) {
             _updateDraft(
-              (draft) =>
-                  draft.copyWith(midtermPrepaymentSelection: selection),
+              (draft) => draft.copyWith(midtermPrepaymentSelection: selection),
             );
           },
           onAmount: (field) {
-            _updateDraft(
-                (draft) => draft.copyWith(midtermPrepayment: field));
+            _updateDraft((draft) => draft.copyWith(midtermPrepayment: field));
           },
         ),
         const SizedBox(height: 16),
@@ -942,13 +912,11 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           keyName: 'other_prepayment',
           onSelection: (selection) {
             _updateDraft(
-              (draft) =>
-                  draft.copyWith(otherPrepaymentSelection: selection),
+              (draft) => draft.copyWith(otherPrepaymentSelection: selection),
             );
           },
           onAmount: (field) {
-            _updateDraft(
-                (draft) => draft.copyWith(otherPrepayment: field));
+            _updateDraft((draft) => draft.copyWith(otherPrepayment: field));
           },
         ),
         const SizedBox(height: 16),
@@ -1001,8 +969,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             children: [
               Row(
                 children: [
-                  Text('결과 요약',
-                      style: AppTypography.textTheme.titleMedium),
+                  Text('결과 요약', style: AppTypography.textTheme.titleMedium),
                   if (result.hasEstimate) ...[
                     const SizedBox(width: 8),
                     const _NoticePill(text: '추정 포함'),
@@ -1010,15 +977,17 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              _summaryRow('총세금(결정세액)', summary.totalTax),
+              _summaryRow('총세금(결정세액)', summary.totalTax, termId: 'T03'),
               const SizedBox(height: 8),
-              _summaryRow('기납부세액', summary.prepaymentTotal),
+              _summaryRow('기납부세액', summary.prepaymentTotal, termId: 'T04'),
               const Divider(height: 24, color: AppColors.border),
               _summaryRow(
                 additionalPositive ? '추가 납부' : '환급 예상',
                 summary.additionalOrRefund.abs(),
-                valueColor:
-                    additionalPositive ? AppColors.danger : AppColors.success,
+                valueColor: additionalPositive
+                    ? AppColors.danger
+                    : AppColors.success,
+                termId: 'T05',
               ),
               if (result.hasEstimate) ...[
                 const SizedBox(height: 12),
@@ -1040,7 +1009,12 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('정밀도', style: AppTypography.textTheme.titleMedium),
+              GlossaryHelpText(
+                label: '정밀도',
+                termId: 'T22',
+                style: AppTypography.textTheme.titleMedium,
+                dense: true,
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -1065,8 +1039,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('다음 액션',
-                    style: AppTypography.textTheme.titleMedium),
+                Text('다음 액션', style: AppTypography.textTheme.titleMedium),
                 const SizedBox(height: 12),
                 ...result.nextActions.map(
                   (action) => Padding(
@@ -1090,8 +1063,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('추정 항목',
-                    style: AppTypography.textTheme.titleMedium),
+                Text('추정 항목', style: AppTypography.textTheme.titleMedium),
                 const SizedBox(height: 12),
                 ...result.estimatedItems.map(
                   (item) => Padding(
@@ -1144,16 +1116,32 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 ),
               ),
               children: [
-                _breakdownRow('총소득', summary.totalIncome),
-                _breakdownRow('소득공제', summary.totalIncomeDeduction),
-                _breakdownRow('과세표준', summary.taxableBase),
-                _breakdownRow('산출세액', summary.calculatedIncomeTax),
-                _breakdownRow('세액공제', summary.additionalTaxCredit),
-                _breakdownRow('종합소득세(국세)', summary.nationalTax),
-                _breakdownRow('지방소득세', summary.localTax),
-                _breakdownRow('총세금(결정세액)', summary.totalTax),
-                _breakdownRow('기납부세액', summary.prepaymentTotal),
-                _breakdownRow('추가/환급', summary.additionalOrRefund),
+                _breakdownRow('총소득', summary.totalIncome, termId: 'T06'),
+                _breakdownRow(
+                  '소득공제',
+                  summary.totalIncomeDeduction,
+                  termId: 'T13',
+                ),
+                _breakdownRow('과세표준', summary.taxableBase, termId: 'T10'),
+                _breakdownRow(
+                  '산출세액',
+                  summary.calculatedIncomeTax,
+                  termId: 'T12',
+                ),
+                _breakdownRow(
+                  '세액공제',
+                  summary.additionalTaxCredit,
+                  termId: 'T14',
+                ),
+                _breakdownRow('종합소득세(국세)', summary.nationalTax, termId: 'T01'),
+                _breakdownRow('지방소득세', summary.localTax, termId: 'T02'),
+                _breakdownRow('총세금(결정세액)', summary.totalTax, termId: 'T03'),
+                _breakdownRow('기납부세액', summary.prepaymentTotal, termId: 'T04'),
+                _breakdownRow(
+                  '추가/환급',
+                  summary.additionalOrRefund,
+                  termId: 'T05',
+                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -1184,7 +1172,6 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             title: title,
             termId: termId,
             statusLabel: selection.status.label,
-            onTermViewed: _onTermViewed,
           ),
           const SizedBox(height: 12),
           _buildNotionChips(
@@ -1283,9 +1270,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           side: const BorderSide(color: AppColors.border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: Text(
           label,
@@ -1313,10 +1298,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
         if (label != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              label,
-              style: AppTypography.textTheme.bodyMedium,
-            ),
+            child: Text(label, style: AppTypography.textTheme.bodyMedium),
           ),
         TextField(
           controller: controller,
@@ -1347,8 +1329,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                     child: _StatusBadge(label: statusLabel),
                   )
                 : null,
-            prefixIconConstraints:
-                const BoxConstraints(minWidth: 0, minHeight: 0),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 0,
+              minHeight: 0,
+            ),
           ),
         ),
       ],
@@ -1392,16 +1376,28 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     );
   }
 
-  Widget _summaryRow(String label, int value, {Color? valueColor}) {
+  Widget _summaryRow(
+    String label,
+    int value, {
+    Color? valueColor,
+    String? termId,
+  }) {
+    final labelStyle = AppTypography.textTheme.bodyMedium?.copyWith(
+      color: AppColors.textSecondary,
+    );
+    final labelWidget = termId == null
+        ? Text(label, style: labelStyle)
+        : GlossaryHelpText(
+            label: label,
+            termId: termId,
+            style: labelStyle,
+            dense: true,
+          );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: AppTypography.textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
+        Expanded(child: labelWidget),
         Text(
           Formatters.formatWonWithUnit(value),
           style: AppTypography.textTheme.titleSmall?.copyWith(
@@ -1413,13 +1409,21 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     );
   }
 
-  Widget _breakdownRow(String label, int amount) {
+  Widget _breakdownRow(String label, int amount, {String? termId}) {
+    final labelWidget = termId == null
+        ? Text(label, style: AppTypography.textTheme.bodyMedium)
+        : GlossaryHelpText(
+            label: label,
+            termId: termId,
+            style: AppTypography.textTheme.bodyMedium,
+            dense: true,
+          );
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.textTheme.bodyMedium),
+          Expanded(child: labelWidget),
           Text(
             Formatters.formatWonWithUnit(amount),
             style: AppTypography.textTheme.bodyMedium?.copyWith(
@@ -1473,8 +1477,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
         : 0;
     final otherPrepayment =
         _draft.otherPrepaymentSelection == SelectionState.yes
-            ? _draft.otherPrepayment.safeValue
-            : 0;
+        ? _draft.otherPrepayment.safeValue
+        : 0;
     return labor + pension + financial + other + midterm + otherPrepayment;
   }
 
@@ -1486,8 +1490,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     final text = value == null
         ? ''
         : isCount
-            ? '$value'
-            : Formatters.formatWon(value);
+        ? '$value'
+        : Formatters.formatWon(value);
     final controller = _controllers.putIfAbsent(
       key,
       () => TextEditingController(text: text),
@@ -1501,8 +1505,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     final text = value == null
         ? ''
         : isCount
-            ? '$value'
-            : Formatters.formatWon(value);
+        ? '$value'
+        : Formatters.formatWon(value);
     if (controller.text == text) return;
     controller.text = text;
     controller.selection = TextSelection.collapsed(offset: text.length);
@@ -1528,14 +1532,11 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     required PrecisionTaxDraft Function(
       PrecisionTaxDraft draft,
       NumericField field,
-    ) apply,
+    )
+    apply,
   }) {
     _syncController(keyName, field.value);
     _updateDraft((draft) => apply(draft, field));
-  }
-
-  void _onTermViewed(String termId) {
-    context.read<BusinessProvider>().markRecentGlossary(termId);
   }
 
   Future<int?> _showIncomeRangePicker(String title) async {
@@ -1611,8 +1612,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
       case _IncomeKind.pension:
         return draft.copyWith(pensionIncome: updater(draft.pensionIncome));
       case _IncomeKind.financial:
-        return draft.copyWith(
-            financialIncome: updater(draft.financialIncome));
+        return draft.copyWith(financialIncome: updater(draft.financialIncome));
       case _IncomeKind.other:
         return draft.copyWith(otherIncome: updater(draft.otherIncome));
     }

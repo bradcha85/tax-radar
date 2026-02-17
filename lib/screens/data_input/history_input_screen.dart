@@ -7,6 +7,7 @@ import '../../theme/app_typography.dart';
 import '../../providers/business_provider.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/chip_selector.dart';
+import '../../widgets/glossary_help_text.dart';
 
 class HistoryInputScreen extends StatefulWidget {
   const HistoryInputScreen({super.key});
@@ -104,7 +105,30 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Previous VAT amount
-            Text('직전 부가세 납부세액', style: AppTypography.textTheme.titleSmall),
+            Builder(
+              builder: (context) {
+                final style = AppTypography.textTheme.titleSmall;
+                return Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  children: [
+                    Text('직전', style: style),
+                    GlossaryHelpText(
+                      label: '부가세',
+                      termId: 'V01',
+                      style: style,
+                      dense: true,
+                    ),
+                    GlossaryHelpText(
+                      label: '납부세액',
+                      termId: 'V02',
+                      style: style,
+                      dense: true,
+                    ),
+                  ],
+                );
+              },
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _vatController,
@@ -203,7 +227,12 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
             const SizedBox(height: 24),
 
             // Yellow umbrella
-            Text('노란우산공제', style: AppTypography.textTheme.titleSmall),
+            GlossaryHelpText(
+              label: '노란우산공제',
+              termId: 'T16',
+              style: AppTypography.textTheme.titleSmall,
+              dense: true,
+            ),
             const SizedBox(height: 12),
             ChipSelector(
               options: const [

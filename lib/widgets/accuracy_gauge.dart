@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import 'notion_card.dart';
+import 'glossary_help_text.dart';
 
 class AccuracyGauge extends StatelessWidget {
   final int overallPercent;
@@ -30,7 +31,12 @@ class AccuracyGauge extends StatelessWidget {
           // Overall accuracy
           Row(
             children: [
-              Text('정확도', style: AppTypography.textTheme.titleMedium),
+              GlossaryHelpText(
+                label: '정확도',
+                termId: 'T22',
+                style: AppTypography.textTheme.titleMedium,
+                dense: true,
+              ),
               const SizedBox(width: 8),
               Text(
                 '$overallPercent%',
@@ -56,26 +62,59 @@ class AccuracyGauge extends StatelessWidget {
           // Sub-items
           _buildItem(Icons.trending_up_rounded, '매출', salesPercent, 'sales'),
           const SizedBox(height: 12),
-          _buildItem(Icons.receipt_long_outlined, '지출', expensePercent, 'expense'),
+          _buildItem(
+            Icons.receipt_long_outlined,
+            '지출',
+            expensePercent,
+            'expense',
+          ),
           const SizedBox(height: 12),
-          _buildItem(Icons.storefront_outlined, '의제매입', deemedPercent, 'deemed'),
+          _buildItem(
+            Icons.storefront_outlined,
+            '의제매입',
+            deemedPercent,
+            'deemed',
+            termId: 'V05',
+          ),
           const SizedBox(height: 12),
-          _buildItem(Icons.update_rounded, '최신성', freshnessPercent, 'freshness'),
+          _buildItem(
+            Icons.update_rounded,
+            '최신성',
+            freshnessPercent,
+            'freshness',
+            termId: 'T29',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildItem(IconData icon, String label, int percent, String type) {
+  Widget _buildItem(
+    IconData icon,
+    String label,
+    int percent,
+    String type, {
+    String? termId,
+  }) {
     final isTappable = percent == 0 && onItemTap != null;
+    final labelWidget = termId == null
+        ? Text(label, style: AppTypography.textTheme.bodyMedium)
+        : GlossaryHelpText(
+            label: label,
+            termId: termId,
+            style: AppTypography.textTheme.bodyMedium,
+            dense: true,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          );
 
     final row = Row(
       children: [
         Icon(icon, size: 18, color: AppColors.textSecondary),
         const SizedBox(width: 8),
-        SizedBox(
-          width: 56,
-          child: Text(label, style: AppTypography.textTheme.bodyMedium),
+        ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 56, maxWidth: 140),
+          child: Align(alignment: Alignment.centerLeft, child: labelWidget),
         ),
         const SizedBox(width: 8),
         Expanded(

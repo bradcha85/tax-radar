@@ -7,7 +7,7 @@ import '../../providers/business_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/notion_card.dart';
-import '../../widgets/term_help_header.dart';
+import '../../widgets/glossary_sheet.dart';
 
 class GlossaryScreen extends StatefulWidget {
   const GlossaryScreen({super.key});
@@ -227,7 +227,6 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
   }
 
   void _openTerm(BuildContext context, GlossaryTerm term) {
-    context.read<BusinessProvider>().markRecentGlossary(term.id);
     showWhereToFindSheet(context, term);
   }
 }

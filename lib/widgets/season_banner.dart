@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../utils/formatters.dart';
+import 'glossary_help_text.dart';
 
 class SeasonBanner extends StatelessWidget {
   final String taxType;
@@ -22,6 +23,14 @@ class SeasonBanner extends StatelessWidget {
     final bgColor = isDanger ? AppColors.dangerLight : AppColors.warningLight;
     final fgColor = isDanger ? AppColors.danger : AppColors.warning;
     final ddayText = Formatters.formatDday(deadline);
+    final termId = switch (taxType) {
+      '부가세' => 'V01',
+      '종소세' => 'T01',
+      _ => null,
+    };
+    final textStyle = AppTypography.textTheme.titleSmall?.copyWith(
+      color: fgColor,
+    );
 
     return GestureDetector(
       onTap: onTap,
@@ -35,18 +44,23 @@ class SeasonBanner extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              size: 18,
-              color: fgColor,
-            ),
+            Icon(Icons.warning_amber_rounded, size: 18, color: fgColor),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                '$taxType 확정 신고 $ddayText',
-                style: AppTypography.textTheme.titleSmall?.copyWith(
-                  color: fgColor,
-                ),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                children: [
+                  termId == null
+                      ? Text(taxType, style: textStyle)
+                      : GlossaryHelpText(
+                          label: taxType,
+                          termId: termId,
+                          style: textStyle,
+                          dense: true,
+                        ),
+                  Text('확정 신고 $ddayText', style: textStyle),
+                ],
               ),
             ),
             if (onTap != null)

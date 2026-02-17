@@ -3,30 +3,34 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Primary
-  static const primary = Color(0xFF2563EB);
-  static const primaryLight = Color(0xFFDBEAFE);
-  static const primaryDark = Color(0xFF1D4ED8);
+  // Primary — Teal
+  static const primary = Color(0xFF087F8C);
+  static const primaryLight = Color(0xFFE6F4F3);
+  static const primaryDark = Color(0xFF095256);
+
+  // Accent — Gold
+  static const accent = Color(0xFFBB9F06);
+  static const accentLight = Color(0xFFFBF7E4);
 
   // Status
-  static const success = Color(0xFF16A34A);
+  static const success = Color(0xFF2D9F6F);
   static const successLight = Color(0xFFDCFCE7);
-  static const warning = Color(0xFFEAB308);
+  static const warning = Color(0xFFD97706);
   static const warningLight = Color(0xFFFEF9C3);
   static const danger = Color(0xFFDC2626);
   static const dangerLight = Color(0xFFFEE2E2);
 
-  // Notion-style neutrals
-  static const background = Color(0xFFF7F6F3);
+  // Neutrals
+  static const background = Color(0xFFF7FAF9);
   static const surface = Color(0xFFFFFFFF);
-  static const border = Color(0xFFE3E3E0);
-  static const borderLight = Color(0xFFF0F0EE);
-  static const divider = Color(0xFFE3E3E0);
+  static const border = Color(0xFFD6E5E3);
+  static const borderLight = Color(0xFFEDF3F2);
+  static const divider = Color(0xFFD6E5E3);
 
   // Text
-  static const textPrimary = Color(0xFF1E293B);
-  static const textSecondary = Color(0xFF64748B);
-  static const textHint = Color(0xFF94A3B8);
+  static const textPrimary = Color(0xFF0A2E2F);
+  static const textSecondary = Color(0xFF5F7A7C);
+  static const textHint = Color(0xFF9CB3B5);
   static const textOnPrimary = Color(0xFFFFFFFF);
 
   // Notion accents

@@ -12,7 +12,8 @@ import '../../data/glossary_terms.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/range_bar.dart';
 import '../../widgets/notion_card.dart';
-import '../../widgets/term_help_header.dart';
+import '../../widgets/glossary_help_text.dart';
+import '../../widgets/glossary_sheet.dart';
 
 enum _EditField { none, sales, expenses, deemed }
 
@@ -52,8 +53,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     final now = DateTime.now();
     final startMonth = now.month <= 6 ? 1 : 7;
     return [
-      for (var m = startMonth; m <= now.month; m++)
-        DateTime(now.year, m, 1),
+      for (var m = startMonth; m <= now.month; m++) DateTime(now.year, m, 1),
     ];
   }
 
@@ -125,24 +125,27 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
           final cardSales = (value * _editCardRatio).round();
           final cashReceiptRatio = (1 - _editCardRatio) * 0.6;
           final cashReceipt = (value * cashReceiptRatio).round();
-          provider.addSales(MonthlySales(
-            yearMonth: entry.month,
-            totalSales: value,
-            cardSales: cardSales,
-            cashReceiptSales: cashReceipt,
-            otherCashSales: value - cardSales - cashReceipt,
-          ));
+          provider.addSales(
+            MonthlySales(
+              yearMonth: entry.month,
+              totalSales: value,
+              cardSales: cardSales,
+              cashReceiptSales: cashReceipt,
+              otherCashSales: value - cardSales - cashReceipt,
+            ),
+          );
         case _EditField.expenses:
-          provider.addExpenses(MonthlyExpenses(
-            yearMonth: entry.month,
-            totalExpenses: value,
-            taxableExpenses: value,
-          ));
+          provider.addExpenses(
+            MonthlyExpenses(
+              yearMonth: entry.month,
+              totalExpenses: value,
+              taxableExpenses: value,
+            ),
+          );
         case _EditField.deemed:
-          provider.addDeemedPurchase(DeemedPurchase(
-            yearMonth: entry.month,
-            amount: value,
-          ));
+          provider.addDeemedPurchase(
+            DeemedPurchase(yearMonth: entry.month, amount: value),
+          );
         case _EditField.none:
           break;
       }
@@ -165,13 +168,31 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
         provider.vatExtrapolationEnabled &&
         provider.salesCompletionPercent < 100;
 
-    final title = isVat ? '부가세 상세' : '종소세 상세';
+    final titleLabel = isVat ? '부가세' : '종소세';
+    final titleTermId = isVat ? 'V01' : 'T01';
     final subtitle = prediction.period;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('$title ($subtitle)'),
+        title: Row(
+          children: [
+            GlossaryHelpText(
+              label: titleLabel,
+              termId: titleTermId,
+              style: AppTypography.textTheme.titleLarge,
+              dense: true,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '상세 ($subtitle)',
+                style: AppTypography.textTheme.titleLarge,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
@@ -191,11 +212,26 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '예상 납부세액',
-                    style: AppTypography.textTheme.titleSmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final style = AppTypography.textTheme.titleSmall
+                          ?.copyWith(color: AppColors.textSecondary);
+                      final label = isVat ? '납부세액' : '총세금(결정세액)';
+                      final termId = isVat ? 'V02' : 'T03';
+
+                      return Row(
+                        children: [
+                          Text('예상', style: style),
+                          const SizedBox(width: 6),
+                          GlossaryHelpText(
+                            label: label,
+                            termId: termId,
+                            style: style,
+                            dense: true,
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   if (isVatEstimated) ...[
                     const SizedBox(height: 8),
@@ -492,7 +528,11 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
           ),
           const SizedBox(height: 2),
           _subItem('├', '카드매출', Formatters.toManWon(breakdown.cardSales)),
-          _subItem('├', '현금영수증', Formatters.toManWon(breakdown.cashReceiptSales)),
+          _subItem(
+            '├',
+            '현금영수증',
+            Formatters.toManWon(breakdown.cashReceiptSales),
+          ),
           _subItem('└', '기타현금', Formatters.toManWon(otherCashSalesSafe)),
 
           // 매출 인라인 편집
@@ -525,7 +565,8 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
           // ── 의제매입세액공제 ──
           _editableLineItem(
             label: '의제매입세액공제',
-            value: '-${Formatters.toManWonWithUnit(breakdown.deemedPurchaseCredit)}',
+            value:
+                '-${Formatters.toManWonWithUnit(breakdown.deemedPurchaseCredit)}',
             isBold: true,
             color: AppColors.success,
             termId: 'V05',
@@ -570,6 +611,20 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     bool isBold = false,
     Color? color,
   }) {
+    final labelStyle = AppTypography.textTheme.bodyMedium?.copyWith(
+      color: AppColors.textSecondary,
+    );
+    final labelWidget = termId == null
+        ? Text(label, overflow: TextOverflow.ellipsis, style: labelStyle)
+        : GlossaryHelpText(
+            label: label,
+            termId: termId,
+            style: labelStyle,
+            dense: true,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -578,15 +633,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
+                Flexible(child: labelWidget),
                 if (termId != null) ...[
                   const SizedBox(width: 6),
                   _helpIcon(termId),
@@ -651,8 +698,9 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     final isEditing = _editingField == field;
     return AnimatedCrossFade(
       duration: const Duration(milliseconds: 200),
-      crossFadeState:
-          isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+      crossFadeState: isEditing
+          ? CrossFadeState.showSecond
+          : CrossFadeState.showFirst,
       firstChild: const SizedBox.shrink(),
       secondChild: isEditing
           ? Padding(
@@ -680,8 +728,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: AppColors.border),
+                          borderSide: const BorderSide(color: AppColors.border),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -714,8 +761,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                                 min: 0,
                                 max: 1,
                                 divisions: 20,
-                                label:
-                                    '${(_editCardRatio * 100).round()}%',
+                                label: '${(_editCardRatio * 100).round()}%',
                                 onChanged: (v) {
                                   setSliderState(() {
                                     _editCardRatio = v;
@@ -730,8 +776,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                           width: 40,
                           child: Text(
                             '${(_editCardRatio * 100).round()}%',
-                            style:
-                                AppTypography.textTheme.bodySmall?.copyWith(
+                            style: AppTypography.textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w600,
                             ),
@@ -801,6 +846,11 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
   }
 
   Widget _helpIcon(String termId) {
+    final helpMode = context.select<BusinessProvider, bool>(
+      (p) => p.glossaryHelpModeEnabled,
+    );
+    if (helpMode) return const SizedBox.shrink();
+
     final term = kGlossaryTermMap[termId];
     if (term == null) return const SizedBox.shrink();
     return GestureDetector(
@@ -833,6 +883,20 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     Color? color,
     String? termId,
   }) {
+    final labelStyle = AppTypography.textTheme.bodyMedium?.copyWith(
+      color: AppColors.textSecondary,
+    );
+    final labelWidget = termId == null
+        ? Text(label, overflow: TextOverflow.ellipsis, style: labelStyle)
+        : GlossaryHelpText(
+            label: label,
+            termId: termId,
+            style: labelStyle,
+            dense: true,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -841,15 +905,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
+                Flexible(child: labelWidget),
                 if (termId != null) ...[
                   const SizedBox(width: 6),
                   _helpIcon(termId),
@@ -916,8 +972,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
       expenseLabel = '필요경비 (기장)';
     } else {
       final rate = breakdown.simpleExpenseRate ?? 0;
-      expenseLabel =
-          '필요경비 (추계 ${(rate * 100).toStringAsFixed(1)}%)';
+      expenseLabel = '필요경비 (추계 ${(rate * 100).toStringAsFixed(1)}%)';
     }
 
     final taxBase = breakdown.taxBase < 0 ? 0 : breakdown.taxBase;
@@ -936,18 +991,21 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
             '- $expenseLabel',
             Formatters.toManWonWithUnit(breakdown.expenses),
             color: AppColors.success,
+            termId: 'T08',
           ),
           const Divider(color: AppColors.border, height: 24),
           _lineItem(
             '= 소득금액',
             Formatters.toManWonWithUnit(breakdown.taxableIncome),
             isBold: true,
+            termId: 'T09',
           ),
           const SizedBox(height: 10),
           _lineItem(
             '- 인적공제',
             Formatters.toManWonWithUnit(breakdown.personalDeduction),
             color: AppColors.success,
+            termId: 'T15',
           ),
           if (breakdown.yellowUmbrellaAnnual > 0) ...[
             const SizedBox(height: 6),
@@ -955,6 +1013,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
               '- 노란우산공제',
               Formatters.toManWonWithUnit(breakdown.yellowUmbrellaAnnual),
               color: AppColors.success,
+              termId: 'T16',
             ),
           ],
           const Divider(color: AppColors.border, height: 24),
@@ -962,16 +1021,19 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
             '= 과세표준',
             Formatters.toManWonWithUnit(taxBase),
             isBold: true,
+            termId: 'T10',
           ),
           const SizedBox(height: 10),
           _lineItem(
             '세율 적용 →',
             Formatters.toManWonWithUnit(breakdown.incomeTax),
+            termId: 'T11',
           ),
           const SizedBox(height: 6),
           _lineItem(
             '+ 지방소득세 (10%)',
             Formatters.toManWonWithUnit(breakdown.localTax),
+            termId: 'T02',
           ),
         ],
       ),

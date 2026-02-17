@@ -320,7 +320,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+			shellScript = "set -e\nAPP_PATH=\"${FLUTTER_APPLICATION_PATH:-$SOURCE_ROOT/..}\"\nSTATE_DIR=\"$APP_PATH/build\"\nSTATE_FILE=\"$STATE_DIR/.last_ios_platform\"\nCURRENT_PLATFORM=\"${PLATFORM_NAME:-${EFFECTIVE_PLATFORM_NAME#-}}\"\n\nmkdir -p \"$STATE_DIR\"\n\nif [ -f \"$STATE_FILE\" ]; then\n  LAST_PLATFORM=\"$(cat \"$STATE_FILE\")\"\nelse\n  LAST_PLATFORM=\"\"\nfi\n\nif [ \"$LAST_PLATFORM\" != \"$CURRENT_PLATFORM\" ]; then\n  rm -rf \"$APP_PATH/.dart_tool/flutter_build\"\n  rm -rf \"$APP_PATH/$FLUTTER_BUILD_DIR/native_assets/ios\"\nfi\n\nprintf \"%s\" \"$CURRENT_PLATFORM\" > \"$STATE_FILE\"\n\n/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
 		};
 		A9FF4FCD7E34EA1301FD66C9 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;

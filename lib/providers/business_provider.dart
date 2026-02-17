@@ -53,6 +53,9 @@ class BusinessProvider extends ChangeNotifier {
   bool _vatExtrapolationEnabled = true;
   bool get vatExtrapolationEnabled => _vatExtrapolationEnabled;
 
+  bool _glossaryHelpModeEnabled = false;
+  bool get glossaryHelpModeEnabled => _glossaryHelpModeEnabled;
+
   late Box _box;
 
   Future<void> init() async {
@@ -150,6 +153,11 @@ class BusinessProvider extends ChangeNotifier {
       defaultValue: true,
     );
 
+    _glossaryHelpModeEnabled = _box.get(
+      'glossaryHelpModeEnabled',
+      defaultValue: false,
+    );
+
     notifyListeners();
   }
 
@@ -167,6 +175,7 @@ class BusinessProvider extends ChangeNotifier {
     _box.put('favoriteGlossaryIds', _favoriteGlossaryIds.toList());
     _box.put('recentGlossaryIds', _recentGlossaryIds);
     _box.put('vatExtrapolationEnabled', _vatExtrapolationEnabled);
+    _box.put('glossaryHelpModeEnabled', _glossaryHelpModeEnabled);
     if (_lastUpdate != null) {
       _box.put('lastUpdate', _lastUpdate!.toIso8601String());
     }
@@ -366,6 +375,13 @@ class BusinessProvider extends ChangeNotifier {
   void setVatExtrapolationEnabled(bool enabled) {
     if (_vatExtrapolationEnabled == enabled) return;
     _vatExtrapolationEnabled = enabled;
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  void setGlossaryHelpModeEnabled(bool enabled) {
+    if (_glossaryHelpModeEnabled == enabled) return;
+    _glossaryHelpModeEnabled = enabled;
     notifyListeners();
     _saveToStorage();
   }

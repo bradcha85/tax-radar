@@ -7,6 +7,7 @@ import '../../providers/business_provider.dart';
 import '../../models/deemed_purchase.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/preset_amount_picker.dart';
+import '../../widgets/glossary_help_text.dart';
 
 class DeemedPurchaseScreen extends StatefulWidget {
   const DeemedPurchaseScreen({super.key});
@@ -123,7 +124,13 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('의제매입 입력'),
+        title: Row(
+          children: [
+            GlossaryHelpText(label: '의제매입', termId: 'V05', dense: true),
+            const SizedBox(width: 6),
+            const Text('입력'),
+          ],
+        ),
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,

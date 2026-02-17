@@ -8,6 +8,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/range_bar.dart';
 import '../../widgets/notion_card.dart';
+import '../../widgets/glossary_help_text.dart';
 
 class FirstResultScreen extends StatelessWidget {
   const FirstResultScreen({super.key});
@@ -68,12 +69,15 @@ class FirstResultScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          '정확도 ',
+                        GlossaryHelpText(
+                          label: '정확도',
+                          termId: 'T22',
                           style: AppTypography.textTheme.bodyMedium?.copyWith(
                             color: AppColors.textSecondary,
                           ),
+                          dense: true,
                         ),
+                        const SizedBox(width: 4),
                         Text(
                           '$accuracy%',
                           style: AppTypography.textTheme.titleMedium?.copyWith(

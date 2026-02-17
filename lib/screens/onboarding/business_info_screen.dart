@@ -6,6 +6,7 @@ import '../../providers/business_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/chip_selector.dart';
+import '../../widgets/glossary_help_text.dart';
 
 class BusinessInfoScreen extends StatefulWidget {
   const BusinessInfoScreen({super.key});
@@ -21,6 +22,9 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final helpMode = context.select<BusinessProvider, bool>(
+      (p) => p.glossaryHelpModeEnabled,
+    );
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -83,6 +87,25 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
 
                   // Question 3: 부가세 포함 여부
                   _buildSectionLabel('매출 금액에 부가세가 포함되어 있나요?'),
+                  if (helpMode) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        GlossaryHelpText(
+                          label: '부가세',
+                          termId: 'V01',
+                          dense: true,
+                        ),
+                        GlossaryHelpText(
+                          label: 'VAT 포함',
+                          termId: 'V08',
+                          dense: true,
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   ChipSelector(
                     options: const [

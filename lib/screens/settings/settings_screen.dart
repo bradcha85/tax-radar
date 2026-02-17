@@ -151,6 +151,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 20),
 
+              // Glossary help mode section
+              _SectionHeader(title: '용어 도움'),
+              const SizedBox(height: 8),
+              NotionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ToggleRow(
+                      label: '상세설명 모드',
+                      value: provider.glossaryHelpModeEnabled,
+                      onChanged: (v) => provider.setGlossaryHelpModeEnabled(v),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '어려운 세금용어가 #해시태그로 바뀌고, 탭하면 쉬운 설명을 보여줘요.',
+                      style: AppTypography.caption,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
               // Notification section
               _SectionHeader(title: '알림 설정'),
               const SizedBox(height: 8),

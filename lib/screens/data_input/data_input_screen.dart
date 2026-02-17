@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../providers/business_provider.dart';
+import '../../widgets/glossary_help_text.dart';
 import '../../widgets/notion_card.dart';
 
 class DataInputScreen extends StatelessWidget {
@@ -73,6 +74,7 @@ class DataInputScreen extends StatelessWidget {
               _DataCategoryCard(
                 emoji: '\u{1F96C}',
                 label: '의제매입',
+                termId: 'V05',
                 percent: provider.deemedCompletionPercent,
                 onTap: () => context.push('/data/deemed-purchase'),
               ),
@@ -94,9 +96,11 @@ class DataInputScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '정밀 종소세',
+                          GlossaryHelpText(
+                            label: '정밀 종소세',
+                            termId: 'T01',
                             style: AppTypography.textTheme.titleSmall,
+                            dense: true,
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -154,18 +158,31 @@ class DataInputScreen extends StatelessWidget {
 class _DataCategoryCard extends StatelessWidget {
   final String emoji;
   final String label;
+  final String? termId;
   final int percent;
   final VoidCallback onTap;
 
   const _DataCategoryCard({
     required this.emoji,
     required this.label,
+    this.termId,
     required this.percent,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final labelWidget = termId == null
+        ? Text(label, style: AppTypography.textTheme.titleSmall)
+        : GlossaryHelpText(
+            label: label,
+            termId: termId!,
+            style: AppTypography.textTheme.titleSmall,
+            dense: true,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          );
+
     return NotionCard(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       onTap: onTap,
@@ -173,9 +190,7 @@ class _DataCategoryCard extends StatelessWidget {
         children: [
           Text(emoji, style: const TextStyle(fontSize: 24)),
           const SizedBox(width: 14),
-          Expanded(
-            child: Text(label, style: AppTypography.textTheme.titleSmall),
-          ),
+          Expanded(child: labelWidget),
           if (percent > 0) ...[
             Container(
               width: 24,
