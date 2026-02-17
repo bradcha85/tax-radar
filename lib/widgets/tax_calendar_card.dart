@@ -371,6 +371,11 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
           final dday = Formatters.formatDday(event.date);
           final isUrgent = event.date.difference(DateTime.now()).inDays <= 14;
 
+          final titleStyle = AppTypography.textTheme.bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w500);
+          final titleLineHeight =
+              (titleStyle?.fontSize ?? 14) * (titleStyle?.height ?? 1.5);
+
           return GestureDetector(
             onTap: event.description != null
                 ? () => _showEventDetail(context, event)
@@ -385,12 +390,17 @@ class _TaxCalendarCardState extends State<TaxCalendarCard> {
                     width: 20,
                     child: Column(
                       children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: event.color,
-                            shape: BoxShape.circle,
+                        SizedBox(
+                          height: titleLineHeight,
+                          child: Center(
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: event.color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                           ),
                         ),
                         if (!isLast)
