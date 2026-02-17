@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -10,10 +12,9 @@ import '../../models/monthly_expenses.dart';
 import '../../models/deemed_purchase.dart';
 import '../../data/glossary_terms.dart';
 import '../../utils/formatters.dart';
-import '../../widgets/range_bar.dart';
-import '../../widgets/notion_card.dart';
 import '../../widgets/glossary_help_text.dart';
 import '../../widgets/glossary_sheet.dart';
+import '../../widgets/notion_card.dart';
 
 enum _EditField { none, sales, expenses, deemed }
 
@@ -157,6 +158,11 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     });
   }
 
+  String _getVatMonthRange() {
+    final now = DateTime.now();
+    return now.month <= 6 ? '1월~6월' : '7월~12월';
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<BusinessProvider>();
@@ -168,188 +174,70 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
         provider.vatExtrapolationEnabled &&
         provider.salesCompletionPercent < 100;
 
-    final titleLabel = isVat ? '부가세' : '종소세';
-    final titleTermId = isVat ? 'V01' : 'T01';
-    final subtitle = prediction.period;
+    final titleLabel = isVat ? '부가세 상세' : '종소세 상세';
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Row(
-          children: [
-            GlossaryHelpText(
-              label: titleLabel,
-              termId: titleTermId,
-              style: AppTypography.textTheme.titleLarge,
-              dense: true,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                '상세 ($subtitle)',
-                style: AppTypography.textTheme.titleLarge,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        title: Text(
+          titleLabel,
+          style: AppTypography.textTheme.titleLarge,
         ),
-        backgroundColor: AppColors.surface,
+        centerTitle: true,
+        backgroundColor: AppColors.background.withValues(alpha: 0.95),
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: AppColors.border, height: 1),
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
+          ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+          left: 20,
+          right: 20,
+          bottom: 24,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Predicted amount header
-            NotionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Builder(
-                    builder: (context) {
-                      final style = AppTypography.textTheme.titleSmall
-                          ?.copyWith(color: AppColors.textSecondary);
-                      final label = isVat ? '납부세액' : '총세금(결정세액)';
-                      final termId = isVat ? 'V02' : 'T03';
+            // ── 히어로 섹션 ──
+            _buildHeroSection(prediction, isVatEstimated),
 
-                      return Row(
-                        children: [
-                          Text('예상', style: style),
-                          const SizedBox(width: 6),
-                          GlossaryHelpText(
-                            label: label,
-                            termId: termId,
-                            style: style,
-                            dense: true,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  if (isVatEstimated) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.warningLight,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '추정 포함',
-                        style: AppTypography.textTheme.labelSmall?.copyWith(
-                          color: AppColors.warning,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Text(
-                    '${Formatters.toManWon(prediction.predictedMin)} ~ ${Formatters.toManWonWithUnit(prediction.predictedMax)}',
-                    style: AppTypography.amountLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  RangeBar(
-                    minValue: prediction.predictedMin,
-                    maxValue: prediction.predictedMax,
-                    absoluteMax: (prediction.predictedMax * 1.5).round(),
-                    color: AppColors.primary,
-                  ),
-                ],
-              ),
-            ),
+            // ── 반기 계산 모드 토글 (VAT only) ──
             if (isVat) ...[
-              const SizedBox(height: 12),
-              NotionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('반기 계산 모드', style: AppTypography.textTheme.titleSmall),
-                    const SizedBox(height: 8),
-                    SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment<bool>(value: false, label: Text('입력분만')),
-                        ButtonSegment<bool>(
-                          value: true,
-                          label: Text('반기 전체 추정'),
-                        ),
-                      ],
-                      selected: {provider.vatExtrapolationEnabled},
-                      onSelectionChanged: (selection) {
-                        provider.setVatExtrapolationEnabled(selection.first);
-                      },
-                    ),
-                    if (provider.vatExtrapolationEnabled &&
-                        provider.salesCompletionPercent < 100) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '기간 미충족 월은 평균 기반 추정이 포함돼요.',
-                        style: AppTypography.caption,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+              const SizedBox(height: 16),
+              _buildModeToggle(provider),
             ],
-            const SizedBox(height: 20),
 
-            // Estimation basis (extrapolation mode only)
+            // ── 추정 근거 (extrapolation mode) ──
             if (isVat &&
                 provider.vatExtrapolationEnabled &&
                 provider.vatFilledMonths > 0 &&
                 provider.vatFilledMonths < 6) ...[
+              const SizedBox(height: 16),
               _buildEstimationBasis(provider),
-              const SizedBox(height: 12),
             ],
 
-            // Section divider
-            _sectionDivider('구성요소'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
 
-            // Breakdown
+            // ── 구성요소 Breakdown ──
             if (isVat)
               _buildVatBreakdown(provider)
             else
               _buildIncomeTaxBreakdown(provider),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // Calculation details
-            NotionCard(
-              child: Theme(
-                data: Theme.of(
-                  context,
-                ).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.only(top: 8, bottom: 4),
-                  title: Text(
-                    '▶ 계산 과정 보기',
-                    style: AppTypography.textTheme.titleSmall?.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  children: [
-                    if (isVat)
-                      _buildVatExplanation()
-                    else
-                      _buildIncomeTaxExplanation(),
-                  ],
-                ),
-              ),
-            ),
+            // ── 계산 기준 ──
+            _buildCalculationBasis(provider),
 
-            // Missing data hint
+            // ── 데이터 부족 힌트 ──
             if (prediction.accuracyScore < 50) ...[
               const SizedBox(height: 20),
               _buildMissingDataHint(context, provider),
@@ -363,7 +251,147 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
   }
 
   // ============================================================
-  // 추정 근거 카드
+  // 히어로 섹션
+  // ============================================================
+
+  Widget _buildHeroSection(dynamic prediction, bool isVatEstimated) {
+    final label = isVat ? '납부 예상액' : '총세금 예상액';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: AppTypography.textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${Formatters.toManWon(prediction.predictedMin)} ~ ${Formatters.toManWonWithUnit(prediction.predictedMax)}',
+            style: AppTypography.numDisplayLarge.copyWith(
+              color: AppColors.accent,
+              letterSpacing: -0.5,
+            ),
+          ),
+          if (isVatEstimated) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.warningLight,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '추정 포함',
+                style: AppTypography.textTheme.labelSmall?.copyWith(
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.borderLight,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 14,
+                  color: AppColors.textHint,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isVat
+                      ? '${prediction.period} (${_getVatMonthRange()})'
+                      : prediction.period,
+                  style: AppTypography.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // 반기 계산 모드 토글
+  // ============================================================
+
+  Widget _buildModeToggle(BusinessProvider provider) {
+    final enabled = provider.vatExtrapolationEnabled;
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.borderLight,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _togglePill(
+            label: '입력분만',
+            isSelected: !enabled,
+            onTap: () => provider.setVatExtrapolationEnabled(false),
+          ),
+          _togglePill(
+            label: '반기 전체 추정',
+            isSelected: enabled,
+            onTap: () => provider.setVatExtrapolationEnabled(true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _togglePill({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: AppTypography.textTheme.labelMedium?.copyWith(
+            color: isSelected ? AppColors.textPrimary : AppColors.textHint,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // 추정 근거 (접이식)
   // ============================================================
 
   Widget _buildEstimationBasis(BusinessProvider provider) {
@@ -372,74 +400,78 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     final inputBreakdown = provider.vatBreakdownInputOnly;
     final estimatedBreakdown = provider.vatBreakdown;
 
-    return NotionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        initiallyExpanded: true,
+        title: Text(
+          '추정 근거',
+          style: AppTypography.textTheme.labelLarge?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
         children: [
-          Text(
-            '추정 근거',
-            style: AppTypography.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderLight),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '입력 $filled개월 기반 → 6개월 추정 (×${scale.toStringAsFixed(1)}배)',
-            style: AppTypography.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Header
-          Row(
-            children: [
-              const Expanded(flex: 3, child: SizedBox.shrink()),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  '입력분',
-                  textAlign: TextAlign.end,
-                  style: AppTypography.textTheme.labelSmall?.copyWith(
-                    color: AppColors.textHint,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '입력 $filled개월 기반 → 6개월 추정 (×${scale.toStringAsFixed(1)}배)',
+                  style: AppTypography.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '→',
-                style: AppTypography.textTheme.labelSmall?.copyWith(
-                  color: AppColors.textHint,
+                const SizedBox(height: 12),
+                // Header
+                Row(
+                  children: [
+                    const Expanded(flex: 3, child: SizedBox.shrink()),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '입력분',
+                        textAlign: TextAlign.end,
+                        style: AppTypography.textTheme.labelSmall?.copyWith(
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '→',
+                      style: AppTypography.textTheme.labelSmall?.copyWith(
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '추정분',
+                        textAlign: TextAlign.end,
+                        style: AppTypography.textTheme.labelSmall?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  '추정분',
-                  textAlign: TextAlign.end,
-                  style: AppTypography.textTheme.labelSmall?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          _estimationRow(
-            '총매출',
-            inputBreakdown.totalSales,
-            estimatedBreakdown.totalSales,
-          ),
-          _estimationRow(
-            '과세매입',
-            inputBreakdown.taxableExpenses,
-            estimatedBreakdown.taxableExpenses,
-          ),
-          _estimationRow(
-            '면세매입',
-            inputBreakdown.deemedPurchaseAmount,
-            estimatedBreakdown.deemedPurchaseAmount,
+                const SizedBox(height: 6),
+                _estimationRow('총매출', inputBreakdown.totalSales, estimatedBreakdown.totalSales),
+                _estimationRow('과세매입', inputBreakdown.taxableExpenses, estimatedBreakdown.taxableExpenses),
+                _estimationRow('면세매입', inputBreakdown.deemedPurchaseAmount, estimatedBreakdown.deemedPurchaseAmount),
+              ],
+            ),
           ),
         ],
       ),
@@ -465,7 +497,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
             child: Text(
               Formatters.toManWon(inputValue),
               textAlign: TextAlign.end,
-              style: AppTypography.textTheme.bodySmall?.copyWith(
+              style: AppTypography.numBodySmall.copyWith(
                 color: AppColors.textSecondary,
               ),
             ),
@@ -483,7 +515,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
             child: Text(
               Formatters.toManWon(estimatedValue),
               textAlign: TextAlign.end,
-              style: AppTypography.textTheme.bodySmall?.copyWith(
+              style: AppTypography.numBodySmall.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w600,
               ),
@@ -495,166 +527,239 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
   }
 
   // ============================================================
-  // 부가세 구성요소
+  // 부가세 구성요소 (Fintech Breakdown Card)
   // ============================================================
 
   Widget _buildVatBreakdown(BusinessProvider provider) {
     final breakdown = provider.vatBreakdown;
     final inputBreakdown = provider.vatBreakdownInputOnly;
+    final prediction = provider.vatPrediction;
     final filled = provider.vatFilledMonths;
     final otherCashSales = breakdown.otherCashSales;
     final otherCashSalesSafe = otherCashSales < 0 ? 0 : otherCashSales;
-
     final summaryLabel = filled > 0 ? '($filled개월 합계)' : '';
 
-    return NotionCard(
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderLight),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 매출세액 ──
-          _editableLineItem(
-            label: '매출세액',
-            value: '+${Formatters.toManWonWithUnit(breakdown.salesTax)}',
-            isBold: true,
-            termId: 'V03',
-            field: _EditField.sales,
-            provider: provider,
-          ),
-          const SizedBox(height: 4),
-          _subItemWithDetail(
-            '총매출 ${Formatters.toManWon(inputBreakdown.totalSales)} $summaryLabel',
-            _EditField.sales,
-            provider,
-          ),
-          const SizedBox(height: 2),
-          _subItem('├', '카드매출', Formatters.toManWon(breakdown.cardSales)),
-          _subItem(
-            '├',
-            '현금영수증',
-            Formatters.toManWon(breakdown.cashReceiptSales),
-          ),
-          _subItem('└', '기타현금', Formatters.toManWon(otherCashSalesSafe)),
-
-          // 매출 인라인 편집
-          _buildInlineEditor(_EditField.sales, provider, '총매출액 (원)'),
-
-          const SizedBox(height: 16),
-
-          // ── 과세 매입세액 ──
-          _editableLineItem(
-            label: '과세 매입세액',
-            value: '-${Formatters.toManWonWithUnit(breakdown.purchaseTax)}',
-            isBold: true,
-            color: AppColors.success,
-            termId: 'V04',
-            field: _EditField.expenses,
-            provider: provider,
-          ),
-          const SizedBox(height: 4),
-          _subItemWithDetail(
-            '과세매입 ${Formatters.toManWon(inputBreakdown.taxableExpenses)}',
-            _EditField.expenses,
-            provider,
+          // ── 매출세액 (상단 섹션) ──
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _breakdownHeader(
+                  label: '매출세액',
+                  value: Formatters.formatWonWithUnit(breakdown.salesTax),
+                  termId: 'V03',
+                ),
+                const SizedBox(height: 8),
+                _subItemWithDetail(
+                  '총매출 ${Formatters.toManWon(inputBreakdown.totalSales)} $summaryLabel',
+                  _EditField.sales,
+                  provider,
+                ),
+                const SizedBox(height: 2),
+                _subItem('├', '카드매출', Formatters.toManWon(breakdown.cardSales)),
+                _subItem('├', '현금영수증', Formatters.toManWon(breakdown.cashReceiptSales)),
+                _subItem('└', '기타현금', Formatters.toManWon(otherCashSalesSafe)),
+                _buildInlineEditor(_EditField.sales, provider, '총매출액 (원)'),
+              ],
+            ),
           ),
 
-          // 과세매입 인라인 편집
-          _buildInlineEditor(_EditField.expenses, provider, '과세매입액 (원)'),
-
-          const SizedBox(height: 16),
-
-          // ── 의제매입세액공제 ──
-          _editableLineItem(
-            label: '의제매입세액공제',
-            value:
-                '-${Formatters.toManWonWithUnit(breakdown.deemedPurchaseCredit)}',
-            isBold: true,
-            color: AppColors.success,
-            termId: 'V05',
-            field: _EditField.deemed,
-            provider: provider,
-          ),
-          const SizedBox(height: 4),
-          _subItemWithDetail(
-            '면세매입 ${Formatters.toManWon(inputBreakdown.deemedPurchaseAmount)}',
-            _EditField.deemed,
-            provider,
+          // ── 구분선 ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(height: 1, color: AppColors.borderLight),
           ),
 
-          // 면세매입 인라인 편집
-          _buildInlineEditor(_EditField.deemed, provider, '면세매입액 (원)'),
+          // ── 공제 섹션 ──
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 과세 매입세액
+                _breakdownDeductionRow(
+                  label: '과세 매입세액',
+                  value: '-${Formatters.formatWonWithUnit(breakdown.purchaseTax)}',
+                  termId: 'V04',
+                ),
+                const SizedBox(height: 4),
+                _subItemWithDetail(
+                  '과세매입 ${Formatters.toManWon(inputBreakdown.taxableExpenses)}',
+                  _EditField.expenses,
+                  provider,
+                ),
+                _buildInlineEditor(_EditField.expenses, provider, '과세매입액 (원)'),
 
-          const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-          // ── 신카발행세액공제 ──
-          _lineItem(
-            '신카발행세액공제',
-            '-${Formatters.toManWonWithUnit(breakdown.cardIssuanceCredit)}',
-            isBold: true,
-            color: AppColors.success,
-            termId: 'V06',
+                // 의제매입세액공제
+                _breakdownDeductionRow(
+                  label: '의제매입세액공제',
+                  value: '-${Formatters.formatWonWithUnit(breakdown.deemedPurchaseCredit)}',
+                  termId: 'V05',
+                ),
+                const SizedBox(height: 4),
+                _subItemWithDetail(
+                  '면세매입 ${Formatters.toManWon(inputBreakdown.deemedPurchaseAmount)}',
+                  _EditField.deemed,
+                  provider,
+                ),
+                _buildInlineEditor(_EditField.deemed, provider, '면세매입액 (원)'),
+
+                const SizedBox(height: 16),
+
+                // 신카발행세액공제
+                _breakdownDeductionRow(
+                  label: '신카발행세액공제',
+                  value: '-${Formatters.formatWonWithUnit(breakdown.cardIssuanceCredit)}',
+                  termId: 'V06',
+                ),
+              ],
+            ),
+          ),
+
+          // ── 구분선 ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(height: 1, color: AppColors.borderLight),
+          ),
+
+          // ── 차감납부세액 (합계 섹션) ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(11),
+                bottomRight: Radius.circular(11),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '차감납부세액',
+                    style: AppTypography.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${Formatters.toManWon(prediction.predictedMin)} ~ ${Formatters.toManWonWithUnit(prediction.predictedMax)}',
+                  style: AppTypography.numDisplayMedium.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // 편집 가능 라인 아이템 + 인라인 편집 UI
-  // ============================================================
+  // ── Breakdown 헬퍼 위젯 ──
 
-  Widget _editableLineItem({
+  Widget _breakdownHeader({
     required String label,
     required String value,
-    required _EditField field,
-    required BusinessProvider provider,
     String? termId,
-    bool isBold = false,
-    Color? color,
   }) {
-    final labelStyle = AppTypography.textTheme.bodyMedium?.copyWith(
-      color: AppColors.textSecondary,
+    return Row(
+      children: [
+        Expanded(
+          child: _labelWithHelp(
+            label,
+            termId,
+            style: AppTypography.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: AppTypography.numBody.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+      ],
     );
-    final labelWidget = termId == null
-        ? Text(label, overflow: TextOverflow.ellipsis, style: labelStyle)
-        : GlossaryHelpText(
+  }
+
+  Widget _breakdownDeductionRow({
+    required String label,
+    required String value,
+    String? termId,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: _labelWithHelp(
+            label,
+            termId,
+            style: AppTypography.textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: AppTypography.numBody.copyWith(
+            color: AppColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _labelWithHelp(String label, String? termId, {TextStyle? style}) {
+    final labelStyle = style ??
+        AppTypography.textTheme.bodyMedium?.copyWith(
+          color: AppColors.textSecondary,
+        );
+
+    if (termId == null) {
+      return Text(label, overflow: TextOverflow.ellipsis, style: labelStyle);
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: GlossaryHelpText(
             label: label,
             termId: termId,
             style: labelStyle,
             dense: true,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
-          );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(child: labelWidget),
-                if (termId != null) ...[
-                  const SizedBox(width: 6),
-                  _helpIcon(termId),
-                ],
-              ],
-            ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            style: isBold
-                ? AppTypography.amountSmall.copyWith(color: color)
-                : AppTypography.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 6),
+        _helpIcon(termId),
+      ],
     );
   }
+
+  // ============================================================
+  // 편집 가능 서브 아이템 + 인라인 편집 UI
+  // ============================================================
 
   Widget _subItemWithDetail(
     String detailText,
@@ -662,7 +767,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     BusinessProvider provider,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, top: 2, bottom: 2),
+      padding: const EdgeInsets.only(left: 8, top: 2, bottom: 2),
       child: Row(
         children: [
           Expanded(
@@ -690,6 +795,36 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     );
   }
 
+  Widget _subItem(String prefix, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, top: 2, bottom: 2),
+      child: Row(
+        children: [
+          Text(
+            '$prefix ',
+            style: AppTypography.textTheme.bodySmall?.copyWith(
+              color: AppColors.textHint,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: AppTypography.numBodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInlineEditor(
     _EditField field,
     BusinessProvider provider,
@@ -704,7 +839,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
       firstChild: const SizedBox.shrink(),
       secondChild: isEditing
           ? Padding(
-              padding: const EdgeInsets.only(left: 16, top: 8, bottom: 4),
+              padding: const EdgeInsets.only(left: 8, top: 8, bottom: 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -824,26 +959,245 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
   }
 
   // ============================================================
-  // 공통 위젯
+  // 종소세 구성요소
   // ============================================================
 
-  Widget _sectionDivider(String label) {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: AppColors.border)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            label,
-            style: AppTypography.textTheme.labelMedium?.copyWith(
-              color: AppColors.textHint,
+  Widget _buildIncomeTaxBreakdown(BusinessProvider provider) {
+    final breakdown = provider.incomeTaxBreakdown;
+    final profile = provider.profile;
+    final prediction = provider.incomeTaxPrediction;
+
+    String expenseLabel;
+    if (profile.hasBookkeeping) {
+      expenseLabel = '필요경비 (기장)';
+    } else {
+      final rate = breakdown.simpleExpenseRate ?? 0;
+      expenseLabel = '필요경비 (추계 ${(rate * 100).toStringAsFixed(1)}%)';
+    }
+
+    final taxBase = breakdown.taxBase < 0 ? 0 : breakdown.taxBase;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 수입/경비 섹션
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _breakdownHeader(
+                  label: '총수입금액',
+                  value: Formatters.formatWonWithUnit(breakdown.annualRevenue),
+                ),
+                const SizedBox(height: 12),
+                _breakdownDeductionRow(
+                  label: '- $expenseLabel',
+                  value: Formatters.toManWonWithUnit(breakdown.expenses),
+                  termId: 'T08',
+                ),
+              ],
             ),
           ),
-        ),
-        const Expanded(child: Divider(color: AppColors.border)),
-      ],
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(height: 1, color: AppColors.borderLight),
+          ),
+
+          // 소득/공제 섹션
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _breakdownHeader(
+                  label: '= 소득금액',
+                  value: Formatters.toManWonWithUnit(breakdown.taxableIncome),
+                  termId: 'T09',
+                ),
+                const SizedBox(height: 12),
+                _breakdownDeductionRow(
+                  label: '- 인적공제',
+                  value: Formatters.toManWonWithUnit(breakdown.personalDeduction),
+                  termId: 'T15',
+                ),
+                if (breakdown.yellowUmbrellaAnnual > 0) ...[
+                  const SizedBox(height: 8),
+                  _breakdownDeductionRow(
+                    label: '- 노란우산공제',
+                    value: Formatters.toManWonWithUnit(breakdown.yellowUmbrellaAnnual),
+                    termId: 'T16',
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(height: 1, color: AppColors.borderLight),
+          ),
+
+          // 과세표준/세율 섹션
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _breakdownHeader(
+                  label: '= 과세표준',
+                  value: Formatters.toManWonWithUnit(taxBase),
+                  termId: 'T10',
+                ),
+                const SizedBox(height: 12),
+                _breakdownDeductionRow(
+                  label: '세율 적용 →',
+                  value: Formatters.toManWonWithUnit(breakdown.incomeTax),
+                  termId: 'T11',
+                ),
+                const SizedBox(height: 8),
+                _breakdownDeductionRow(
+                  label: '+ 지방소득세 (10%)',
+                  value: Formatters.toManWonWithUnit(breakdown.localTax),
+                  termId: 'T02',
+                ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(height: 1, color: AppColors.borderLight),
+          ),
+
+          // 합계
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(11),
+                bottomRight: Radius.circular(11),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '총 결정세액',
+                    style: AppTypography.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${Formatters.toManWon(prediction.predictedMin)} ~ ${Formatters.toManWonWithUnit(prediction.predictedMax)}',
+                  style: AppTypography.numDisplayMedium.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  // ============================================================
+  // 계산 기준 (접이식)
+  // ============================================================
+
+  Widget _buildCalculationBasis(BusinessProvider provider) {
+    final business = provider.business;
+    final businessTypeLabel =
+        business.businessType == 'cafe' ? '카페' : '음식점';
+    final deemedRate =
+        business.businessType == 'cafe' ? '9/109' : '8/108';
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        title: Text(
+          '계산 기준',
+          style: AppTypography.textTheme.labelLarge?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: Column(
+              children: [
+                if (isVat) ...[
+                  _basisRow('업종', businessTypeLabel),
+                  _basisDivider(),
+                  _basisRow('의제매입 공제율', deemedRate),
+                  _basisDivider(),
+                  _basisRow('신용카드 공제율', '1.3%'),
+                  _basisDivider(),
+                ],
+                const SizedBox(height: 8),
+                if (isVat)
+                  _buildVatExplanation()
+                else
+                  _buildIncomeTaxExplanation(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _basisRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: AppTypography.textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Text(
+            value,
+            style: AppTypography.numBodySmall.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _basisDivider() {
+    return Container(height: 1, color: AppColors.borderLight);
+  }
+
+  // ============================================================
+  // 공통 위젯
+  // ============================================================
 
   Widget _helpIcon(String termId) {
     final helpMode = context.select<BusinessProvider, bool>(
@@ -872,170 +1226,6 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
             height: 1,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _lineItem(
-    String label,
-    String value, {
-    bool isBold = false,
-    Color? color,
-    String? termId,
-  }) {
-    final labelStyle = AppTypography.textTheme.bodyMedium?.copyWith(
-      color: AppColors.textSecondary,
-    );
-    final labelWidget = termId == null
-        ? Text(label, overflow: TextOverflow.ellipsis, style: labelStyle)
-        : GlossaryHelpText(
-            label: label,
-            termId: termId,
-            style: labelStyle,
-            dense: true,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(child: labelWidget),
-                if (termId != null) ...[
-                  const SizedBox(width: 6),
-                  _helpIcon(termId),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            style: isBold
-                ? AppTypography.amountSmall.copyWith(color: color)
-                : AppTypography.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _subItem(String prefix, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16, top: 2, bottom: 2),
-      child: Row(
-        children: [
-          Text(
-            '$prefix ',
-            style: AppTypography.textTheme.bodySmall?.copyWith(
-              color: AppColors.textHint,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              label,
-              style: AppTypography.textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: AppTypography.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // 종소세 구성요소
-  // ============================================================
-
-  Widget _buildIncomeTaxBreakdown(BusinessProvider provider) {
-    final breakdown = provider.incomeTaxBreakdown;
-    final profile = provider.profile;
-
-    String expenseLabel;
-    if (profile.hasBookkeeping) {
-      expenseLabel = '필요경비 (기장)';
-    } else {
-      final rate = breakdown.simpleExpenseRate ?? 0;
-      expenseLabel = '필요경비 (추계 ${(rate * 100).toStringAsFixed(1)}%)';
-    }
-
-    final taxBase = breakdown.taxBase < 0 ? 0 : breakdown.taxBase;
-
-    return NotionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _lineItem(
-            '총수입금액',
-            Formatters.toManWonWithUnit(breakdown.annualRevenue),
-            isBold: true,
-          ),
-          const SizedBox(height: 10),
-          _lineItem(
-            '- $expenseLabel',
-            Formatters.toManWonWithUnit(breakdown.expenses),
-            color: AppColors.success,
-            termId: 'T08',
-          ),
-          const Divider(color: AppColors.border, height: 24),
-          _lineItem(
-            '= 소득금액',
-            Formatters.toManWonWithUnit(breakdown.taxableIncome),
-            isBold: true,
-            termId: 'T09',
-          ),
-          const SizedBox(height: 10),
-          _lineItem(
-            '- 인적공제',
-            Formatters.toManWonWithUnit(breakdown.personalDeduction),
-            color: AppColors.success,
-            termId: 'T15',
-          ),
-          if (breakdown.yellowUmbrellaAnnual > 0) ...[
-            const SizedBox(height: 6),
-            _lineItem(
-              '- 노란우산공제',
-              Formatters.toManWonWithUnit(breakdown.yellowUmbrellaAnnual),
-              color: AppColors.success,
-              termId: 'T16',
-            ),
-          ],
-          const Divider(color: AppColors.border, height: 24),
-          _lineItem(
-            '= 과세표준',
-            Formatters.toManWonWithUnit(taxBase),
-            isBold: true,
-            termId: 'T10',
-          ),
-          const SizedBox(height: 10),
-          _lineItem(
-            '세율 적용 →',
-            Formatters.toManWonWithUnit(breakdown.incomeTax),
-            termId: 'T11',
-          ),
-          const SizedBox(height: 6),
-          _lineItem(
-            '+ 지방소득세 (10%)',
-            Formatters.toManWonWithUnit(breakdown.localTax),
-            termId: 'T02',
-          ),
-        ],
       ),
     );
   }
@@ -1109,7 +1299,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '\u{1F4A1} 범위가 넓은 이유:',
+            '범위가 넓은 이유:',
             style: AppTypography.textTheme.titleSmall,
           ),
           const SizedBox(height: 8),

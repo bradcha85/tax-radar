@@ -43,7 +43,7 @@ class AppTypography {
     );
   }
 
-  // Convenience styles
+  // Convenience styles (Noto Sans)
   static TextStyle get amountLarge => _style(28, FontWeight.w700);
   static TextStyle get amountMedium => _style(22, FontWeight.w700);
   static TextStyle get amountSmall => _style(16, FontWeight.w600);
@@ -53,4 +53,23 @@ class AppTypography {
 
   static TextStyle get caption =>
       _style(12, FontWeight.w400).copyWith(color: AppColors.textSecondary);
+
+  // Number display styles (Manrope — crisp, fintech-grade numerals)
+  static TextStyle _numStyle(double size, FontWeight weight) {
+    return GoogleFonts.manrope(
+      fontSize: size,
+      fontWeight: weight,
+      color: AppColors.textPrimary,
+      height: 1.2,
+    );
+  }
+
+  static TextStyle get numDisplayLarge =>
+      _numStyle(32, FontWeight.w800);
+  static TextStyle get numDisplayMedium =>
+      _numStyle(24, FontWeight.w700);
+  static TextStyle get numBody =>
+      _numStyle(16, FontWeight.w600);
+  static TextStyle get numBodySmall =>
+      _numStyle(14, FontWeight.w500);
 }
