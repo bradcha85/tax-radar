@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class MainShell extends StatelessWidget {
   final Widget child;
@@ -24,7 +25,9 @@ class MainShell extends StatelessWidget {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+          border: Border(
+            top: BorderSide(color: AppColors.border, width: 1),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: index,
@@ -44,22 +47,30 @@ class MainShell extends StatelessWidget {
           unselectedItemColor: AppColors.textHint,
           selectedFontSize: 12,
           unselectedFontSize: 12,
+          selectedLabelStyle: AppTypography.textTheme.labelMedium?.copyWith(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w600,
+          ),
+          unselectedLabelStyle: AppTypography.textTheme.labelMedium?.copyWith(
+            color: AppColors.textHint,
+            fontWeight: FontWeight.w400,
+          ),
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
-              icon: Text('\u{1F4E1}', style: TextStyle(fontSize: 20)),
-              activeIcon: Text('\u{1F4E1}', style: TextStyle(fontSize: 20)),
-              label: '\uB808\uC774\uB354',
+              icon: Icon(Icons.home_outlined, size: 24),
+              activeIcon: Icon(Icons.home, size: 24),
+              label: '레이더',
             ),
             BottomNavigationBarItem(
-              icon: Text('\u{1F4C1}', style: TextStyle(fontSize: 20)),
-              activeIcon: Text('\u{1F4C1}', style: TextStyle(fontSize: 20)),
-              label: '\uC790\uB8CC\uD568',
+              icon: Icon(Icons.folder_outlined, size: 24),
+              activeIcon: Icon(Icons.folder, size: 24),
+              label: '데이터',
             ),
             BottomNavigationBarItem(
-              icon: Text('\u2699\uFE0F', style: TextStyle(fontSize: 20)),
-              activeIcon: Text('\u2699\uFE0F', style: TextStyle(fontSize: 20)),
-              label: '\uC124\uC815',
+              icon: Icon(Icons.settings_outlined, size: 24),
+              activeIcon: Icon(Icons.settings, size: 24),
+              label: '설정',
             ),
           ],
         ),
