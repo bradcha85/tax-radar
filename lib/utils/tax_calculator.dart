@@ -39,13 +39,14 @@ class TaxCalculator {
     );
 
     // ⑤ 납부세액
-    final estimated = breakdown.estimatedVat;
-    final midPoint = estimated.clamp(0, estimated.abs() * 3);
+    final estimatedVat = breakdown.estimatedVat;
+    final isRefund = estimatedVat < 0;
+    final base = estimatedVat.abs();
 
     // 정확도에 따라 범위 조정
     final marginRate = _getMarginRate(accuracyScore);
-    final min = (midPoint * (1 - marginRate)).round().clamp(0, midPoint * 3);
-    final max = (midPoint * (1 + marginRate)).round();
+    final min = (base * (1 - marginRate)).round().clamp(0, base * 3);
+    final max = (base * (1 + marginRate)).round();
 
     return TaxPrediction(
       taxType: 'vat',
@@ -53,6 +54,7 @@ class TaxCalculator {
       predictedMin: min < 0 ? 0 : min,
       predictedMax: max < 0 ? 0 : max,
       accuracyScore: accuracyScore,
+      isRefund: isRefund,
     );
   }
 

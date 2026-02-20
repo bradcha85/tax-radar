@@ -9,6 +9,7 @@ import '../models/user_profile.dart';
 import '../models/vat_breakdown.dart';
 import '../models/income_tax_breakdown.dart';
 import '../models/precision_tax.dart';
+import '../models/vat_prepayment.dart';
 import '../utils/tax_calculator.dart';
 import '../utils/formatters.dart';
 
@@ -52,6 +53,10 @@ class BusinessProvider extends ChangeNotifier {
 
   bool _vatExtrapolationEnabled = true;
   bool get vatExtrapolationEnabled => _vatExtrapolationEnabled;
+
+  String? _vatPrepaymentPeriodKey;
+  VatPrepaymentStatus _vatPrepaymentStatus = VatPrepaymentStatus.unset;
+  int? _vatPrepaymentAmount;
 
   bool _glossaryHelpModeEnabled = false;
   bool get glossaryHelpModeEnabled => _glossaryHelpModeEnabled;
@@ -153,6 +158,16 @@ class BusinessProvider extends ChangeNotifier {
       defaultValue: true,
     );
 
+    _vatPrepaymentPeriodKey = _box.get('vatPrepaymentPeriodKey') as String?;
+    final vatPrepaymentStatusRaw = _box.get('vatPrepaymentStatus') as String?;
+    _vatPrepaymentStatus = VatPrepaymentStatus.values.firstWhere(
+      (item) => item.name == vatPrepaymentStatusRaw,
+      orElse: () => VatPrepaymentStatus.unset,
+    );
+    final vatPrepaymentAmountRaw = _box.get('vatPrepaymentAmount');
+    _vatPrepaymentAmount =
+        vatPrepaymentAmountRaw is int ? vatPrepaymentAmountRaw : null;
+
     _glossaryHelpModeEnabled = _box.get(
       'glossaryHelpModeEnabled',
       defaultValue: false,
@@ -175,6 +190,9 @@ class BusinessProvider extends ChangeNotifier {
     _box.put('favoriteGlossaryIds', _favoriteGlossaryIds.toList());
     _box.put('recentGlossaryIds', _recentGlossaryIds);
     _box.put('vatExtrapolationEnabled', _vatExtrapolationEnabled);
+    _box.put('vatPrepaymentPeriodKey', _vatPrepaymentPeriodKey);
+    _box.put('vatPrepaymentStatus', _vatPrepaymentStatus.name);
+    _box.put('vatPrepaymentAmount', _vatPrepaymentAmount);
     _box.put('glossaryHelpModeEnabled', _glossaryHelpModeEnabled);
     if (_lastUpdate != null) {
       _box.put('lastUpdate', _lastUpdate!.toIso8601String());
@@ -379,6 +397,23 @@ class BusinessProvider extends ChangeNotifier {
     _saveToStorage();
   }
 
+  void setVatPrepayment({
+    required VatPrepaymentStatus status,
+    int? amount,
+  }) {
+    final periodKey = Formatters.resolveVatPeriod(now: DateTime.now()).key;
+    _vatPrepaymentPeriodKey = periodKey;
+    _vatPrepaymentStatus = status;
+    if (status == VatPrepaymentStatus.known) {
+      _vatPrepaymentAmount = (amount ?? 0).clamp(0, 1 << 60).toInt();
+    } else {
+      _vatPrepaymentAmount = null;
+    }
+    _lastUpdate = DateTime.now();
+    notifyListeners();
+    _saveToStorage();
+  }
+
   void setGlossaryHelpModeEnabled(bool enabled) {
     if (_glossaryHelpModeEnabled == enabled) return;
     _glossaryHelpModeEnabled = enabled;
@@ -390,21 +425,76 @@ class BusinessProvider extends ChangeNotifier {
   // Computed Values
   // ============================================================
 
+  VatPeriod _currentVatPeriod(DateTime now) {
+    return Formatters.resolveVatPeriod(now: now);
+  }
+
+  DateTime _vatCompletionEnd(VatPeriod period, DateTime now) {
+    if (now.isBefore(period.start)) return period.start;
+    final nowMonthStart = DateTime(now.year, now.month, 1);
+    if (!nowMonthStart.isBefore(period.end)) return period.end;
+    return DateTime(nowMonthStart.year, nowMonthStart.month + 1, 1);
+  }
+
+  int _vatElapsedMonths(VatPeriod period, DateTime now) {
+    final completionEnd = _vatCompletionEnd(period, now);
+    final months =
+        (completionEnd.year - period.start.year) * 12 +
+        (completionEnd.month - period.start.month);
+    return months.clamp(0, period.totalMonths);
+  }
+
+  VatPeriod get vatPeriod {
+    final now = DateTime.now();
+    return _currentVatPeriod(now);
+  }
+
+  int get vatCardCreditUsedThisYear {
+    return _getCardCreditUsedForVatPeriod(vatPeriod);
+  }
+
+  VatPrepaymentStatus get vatPrepaymentStatus {
+    final currentKey = vatPeriod.key;
+    if (_vatPrepaymentPeriodKey != currentKey) return VatPrepaymentStatus.unset;
+    return _vatPrepaymentStatus;
+  }
+
+  int? get vatPrepaymentAmount {
+    if (vatPrepaymentStatus != VatPrepaymentStatus.known) return null;
+    return _vatPrepaymentAmount ?? 0;
+  }
+
+  int? get vatPrepaymentEffectiveAmount {
+    switch (vatPrepaymentStatus) {
+      case VatPrepaymentStatus.none:
+        return 0;
+      case VatPrepaymentStatus.known:
+        return vatPrepaymentAmount ?? 0;
+      case VatPrepaymentStatus.unset:
+      case VatPrepaymentStatus.unknown:
+        return null;
+    }
+  }
+
   /// 정확도 점수
   int get accuracyScore {
     final now = DateTime.now();
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
-    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
+    final period = _currentVatPeriod(now);
+    final completionEnd = _vatCompletionEnd(period, now);
+    final monthsInPeriod = _vatElapsedMonths(period, now);
 
-    final salesMonthsFilled = _salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
-        .length;
+    final salesMonthsFilled =
+        _salesList
+            .where(
+              (s) =>
+                  !s.yearMonth.isBefore(period.start) &&
+                  s.yearMonth.isBefore(completionEnd),
+            )
+            .length;
 
     return TaxCalculator.calculateAccuracy(
       salesMonthsFilled: salesMonthsFilled,
-      totalMonths: monthsInHalf,
+      totalMonths: monthsInPeriod,
       hasExpenses: _expensesList.isNotEmpty,
       hasDeemedPurchases: _deemedPurchases.isNotEmpty,
       lastUpdate: _lastUpdate,
@@ -414,15 +504,19 @@ class BusinessProvider extends ChangeNotifier {
   /// 매출 입력 완료도 (%)
   int get salesCompletionPercent {
     final now = DateTime.now();
-    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
-    if (monthsInHalf == 0) return 0;
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
-    final filled = _salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
-        .length;
-    return (filled / monthsInHalf * 100).round().clamp(0, 100);
+    final period = _currentVatPeriod(now);
+    final completionEnd = _vatCompletionEnd(period, now);
+    final monthsInPeriod = _vatElapsedMonths(period, now);
+    if (monthsInPeriod == 0) return 0;
+    final filled =
+        _salesList
+            .where(
+              (s) =>
+                  !s.yearMonth.isBefore(period.start) &&
+                  s.yearMonth.isBefore(completionEnd),
+            )
+            .length;
+    return (filled / monthsInPeriod * 100).round().clamp(0, 100);
   }
 
   /// 지출 입력 완료도 (%)
@@ -450,68 +544,96 @@ class BusinessProvider extends ChangeNotifier {
   /// 부가세 예측
   TaxPrediction get vatPrediction {
     final now = DateTime.now();
-    final period = Formatters.getVatPeriod(now);
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
-    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
+    final vatPeriod = _currentVatPeriod(now);
+    final periodLabel = vatPeriod.label;
+    final completionEnd = _vatCompletionEnd(vatPeriod, now);
+    final monthsInPeriod = _vatElapsedMonths(vatPeriod, now);
 
-    final halfSales = _salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
-        .toList();
-    final halfExpenses = _expensesList
-        .where((e) => !e.yearMonth.isBefore(currentHalfStart))
-        .toList();
-    final halfDeemed = _deemedPurchases
-        .where((d) => !d.yearMonth.isBefore(currentHalfStart))
-        .toList();
+    final periodSales =
+        _salesList
+            .where(
+              (s) =>
+                  !s.yearMonth.isBefore(vatPeriod.start) &&
+                  s.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
+    final periodExpenses =
+        _expensesList
+            .where(
+              (e) =>
+                  !e.yearMonth.isBefore(vatPeriod.start) &&
+                  e.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
+    final periodDeemed =
+        _deemedPurchases
+            .where(
+              (d) =>
+                  !d.yearMonth.isBefore(vatPeriod.start) &&
+                  d.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
 
-    final filledMonths = halfSales.length.clamp(0, monthsInHalf);
-    final cardCreditUsedThisYear = _getCardCreditUsedThisYear(now);
+    final filledMonths = periodSales.length.clamp(0, monthsInPeriod);
+    final cardCreditUsedThisYear = _getCardCreditUsedForVatPeriod(vatPeriod);
 
     return TaxCalculator.calculateVat(
       business: _business,
-      salesList: halfSales,
-      expensesList: halfExpenses,
-      deemedPurchases: halfDeemed,
+      salesList: periodSales,
+      expensesList: periodExpenses,
+      deemedPurchases: periodDeemed,
       accuracyScore: accuracyScore,
-      period: period,
+      period: periodLabel,
       filledMonths: filledMonths,
       totalPeriodMonths: _vatTotalPeriodMonths(filledMonths),
       cardCreditUsedThisYear: cardCreditUsedThisYear,
-      asOf: now,
+      asOf: vatPeriod.constantsDate,
     );
   }
 
   VatBreakdown get vatBreakdown {
     final now = DateTime.now();
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
-    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
+    final vatPeriod = _currentVatPeriod(now);
+    final completionEnd = _vatCompletionEnd(vatPeriod, now);
+    final monthsInPeriod = _vatElapsedMonths(vatPeriod, now);
 
-    final halfSales = _salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
-        .toList();
-    final halfExpenses = _expensesList
-        .where((e) => !e.yearMonth.isBefore(currentHalfStart))
-        .toList();
-    final halfDeemed = _deemedPurchases
-        .where((d) => !d.yearMonth.isBefore(currentHalfStart))
-        .toList();
+    final periodSales =
+        _salesList
+            .where(
+              (s) =>
+                  !s.yearMonth.isBefore(vatPeriod.start) &&
+                  s.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
+    final periodExpenses =
+        _expensesList
+            .where(
+              (e) =>
+                  !e.yearMonth.isBefore(vatPeriod.start) &&
+                  e.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
+    final periodDeemed =
+        _deemedPurchases
+            .where(
+              (d) =>
+                  !d.yearMonth.isBefore(vatPeriod.start) &&
+                  d.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
 
-    final filledMonths = halfSales.length.clamp(0, monthsInHalf);
-    final cardCreditUsedThisYear = _getCardCreditUsedThisYear(now);
+    final filledMonths = periodSales.length.clamp(0, monthsInPeriod);
+    final cardCreditUsedThisYear = _getCardCreditUsedForVatPeriod(vatPeriod);
 
     return TaxCalculator.computeVatBreakdown(
       business: _business,
-      salesList: halfSales,
-      expensesList: halfExpenses,
-      deemedPurchases: halfDeemed,
+      salesList: periodSales,
+      expensesList: periodExpenses,
+      deemedPurchases: periodDeemed,
       filledMonths: filledMonths,
       totalPeriodMonths: _vatTotalPeriodMonths(filledMonths),
       cardCreditUsedThisYear: cardCreditUsedThisYear,
-      asOf: now,
+      asOf: vatPeriod.constantsDate,
     );
   }
 
@@ -561,12 +683,13 @@ class BusinessProvider extends ChangeNotifier {
     );
   }
 
-  int _getCardCreditUsedThisYear(DateTime now) {
+  int _getCardCreditUsedForVatPeriod(VatPeriod vatPeriod) {
     // 2기(7~12월)에는 1기(1~6월) 공제를 먼저 반영해서 연간 한도 초과를 방지
-    if (now.month <= 6) return 0;
+    if (vatPeriod.half == 1) return 0;
 
-    final firstHalfStart = DateTime(now.year, 1, 1);
-    final secondHalfStart = DateTime(now.year, 7, 1);
+    final year = vatPeriod.year;
+    final firstHalfStart = DateTime(year, 1, 1);
+    final secondHalfStart = DateTime(year, 7, 1);
 
     final firstHalfSales = _salesList
         .where(
@@ -600,7 +723,7 @@ class BusinessProvider extends ChangeNotifier {
         firstHalfSales.length.clamp(0, 6),
       ),
       cardCreditUsedThisYear: 0,
-      asOf: now,
+      asOf: DateTime(year, 6, 30, 23, 59, 59),
     );
 
     return firstHalfBreakdown.cardIssuanceCredit;
@@ -609,57 +732,77 @@ class BusinessProvider extends ChangeNotifier {
   /// 반기 총 매출
   int get halfYearTotalSales {
     final now = DateTime.now();
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
+    final vatPeriod = _currentVatPeriod(now);
+    final completionEnd = _vatCompletionEnd(vatPeriod, now);
     return _salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
+        .where(
+          (s) =>
+              !s.yearMonth.isBefore(vatPeriod.start) &&
+              s.yearMonth.isBefore(completionEnd),
+        )
         .fold<int>(0, (sum, s) => sum + s.totalSales);
   }
 
   /// 현재 반기 입력된 월 수
   int get vatFilledMonths {
     final now = DateTime.now();
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
-    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
+    final vatPeriod = _currentVatPeriod(now);
+    final completionEnd = _vatCompletionEnd(vatPeriod, now);
+    final monthsInPeriod = _vatElapsedMonths(vatPeriod, now);
     return _salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
+        .where(
+          (s) =>
+              !s.yearMonth.isBefore(vatPeriod.start) &&
+              s.yearMonth.isBefore(completionEnd),
+        )
         .length
-        .clamp(0, monthsInHalf);
+        .clamp(0, monthsInPeriod);
   }
 
   /// 항상 외삽 없는(scale=1) breakdown — 입력분만 원본 데이터
   VatBreakdown get vatBreakdownInputOnly {
     final now = DateTime.now();
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
-    final monthsInHalf = now.month <= 6 ? now.month : now.month - 6;
+    final vatPeriod = _currentVatPeriod(now);
+    final completionEnd = _vatCompletionEnd(vatPeriod, now);
+    final monthsInPeriod = _vatElapsedMonths(vatPeriod, now);
 
-    final halfSales = _salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
-        .toList();
-    final halfExpenses = _expensesList
-        .where((e) => !e.yearMonth.isBefore(currentHalfStart))
-        .toList();
-    final halfDeemed = _deemedPurchases
-        .where((d) => !d.yearMonth.isBefore(currentHalfStart))
-        .toList();
+    final periodSales =
+        _salesList
+            .where(
+              (s) =>
+                  !s.yearMonth.isBefore(vatPeriod.start) &&
+                  s.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
+    final periodExpenses =
+        _expensesList
+            .where(
+              (e) =>
+                  !e.yearMonth.isBefore(vatPeriod.start) &&
+                  e.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
+    final periodDeemed =
+        _deemedPurchases
+            .where(
+              (d) =>
+                  !d.yearMonth.isBefore(vatPeriod.start) &&
+                  d.yearMonth.isBefore(completionEnd),
+            )
+            .toList();
 
-    final filledMonths = halfSales.length.clamp(0, monthsInHalf);
-    final cardCreditUsedThisYear = _getCardCreditUsedThisYear(now);
+    final filledMonths = periodSales.length.clamp(0, monthsInPeriod);
+    final cardCreditUsedThisYear = _getCardCreditUsedForVatPeriod(vatPeriod);
 
     return TaxCalculator.computeVatBreakdown(
       business: _business,
-      salesList: halfSales,
-      expensesList: halfExpenses,
-      deemedPurchases: halfDeemed,
+      salesList: periodSales,
+      expensesList: periodExpenses,
+      deemedPurchases: periodDeemed,
       filledMonths: filledMonths,
       totalPeriodMonths: filledMonths <= 0 ? 1 : filledMonths,
       cardCreditUsedThisYear: cardCreditUsedThisYear,
-      asOf: now,
+      asOf: vatPeriod.constantsDate,
     );
   }
 

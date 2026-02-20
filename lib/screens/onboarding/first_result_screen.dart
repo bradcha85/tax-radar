@@ -18,6 +18,7 @@ class FirstResultScreen extends StatelessWidget {
     final provider = context.watch<BusinessProvider>();
     final prediction = provider.vatPrediction;
     final accuracy = provider.accuracyScore;
+    final isRefund = prediction.isRefund;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -33,7 +34,7 @@ class FirstResultScreen extends StatelessWidget {
 
                     // Title
                     Text(
-                      '부가세 예상',
+                      isRefund ? '부가세 환급 가능' : '부가세 예상',
                       style: AppTypography.textTheme.headlineMedium,
                       textAlign: TextAlign.center,
                     ),
@@ -53,7 +54,9 @@ class FirstResultScreen extends StatelessWidget {
 
                     // Amount text
                     Text(
-                      '${Formatters.toManWonWithUnit(prediction.predictedMin)} ~ ${Formatters.toManWonWithUnit(prediction.predictedMax)}',
+                      isRefund
+                          ? '환급 ${Formatters.toManWon(prediction.predictedMin)} ~ ${Formatters.toManWonWithUnit(prediction.predictedMax)}'
+                          : '${Formatters.toManWonWithUnit(prediction.predictedMin)} ~ ${Formatters.toManWonWithUnit(prediction.predictedMax)}',
                       style: AppTypography.amountLarge,
                       textAlign: TextAlign.center,
                     ),

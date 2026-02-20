@@ -84,15 +84,46 @@ class Formatters {
     return '$year년 $half';
   }
 
+  /// 다음 납부(확정신고) 기준으로 해석한 부가세 과세기간 정보
+  ///
+  /// - 7/25 납부분: 해당 연도 1기(1~6월)
+  /// - 1/25 납부분: 전년도 2기(7~12월)
+  static VatPeriod resolveVatPeriod({DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final deadline = getNextVatDeadline(now: current);
+
+    // 1/25 납부 = 전년도 2기(7~12월)
+    if (deadline.month == 1) {
+      final year = deadline.year - 1;
+      return VatPeriod(
+        year: year,
+        half: 2,
+        start: DateTime(year, 7, 1),
+        end: DateTime(year + 1, 1, 1),
+        deadline: deadline,
+      );
+    }
+
+    // 7/25 납부 = 해당 연도 1기(1~6월)
+    final year = deadline.year;
+    return VatPeriod(
+      year: year,
+      half: 1,
+      start: DateTime(year, 1, 1),
+      end: DateTime(year, 7, 1),
+      deadline: deadline,
+    );
+  }
+
   /// 종소세 기간
   static String getIncomeTaxPeriod(DateTime date) {
     return '${date.year}년';
   }
 
   /// 다음 부가세 납부일
-  static DateTime getNextVatDeadline() {
-    final now = DateTime.now();
-    final year = now.year;
+  static DateTime getNextVatDeadline({DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final year = current.year;
 
     // 1기 확정: 7/25, 2기 확정: 다음해 1/25
     final deadlines = [
@@ -102,7 +133,7 @@ class Formatters {
     ];
 
     for (final d in deadlines) {
-      if (d.isAfter(now)) return d;
+      if (d.isAfter(current)) return d;
     }
     return DateTime(year + 1, 7, 25);
   }
@@ -114,4 +145,33 @@ class Formatters {
     if (thisYear.isAfter(now)) return thisYear;
     return DateTime(now.year + 1, 5, 31);
   }
+}
+
+class VatPeriod {
+  final int year;
+  final int half; // 1 or 2
+  final DateTime start;
+  final DateTime end; // exclusive
+  final DateTime deadline;
+
+  const VatPeriod({
+    required this.year,
+    required this.half,
+    required this.start,
+    required this.end,
+    required this.deadline,
+  });
+
+  String get key => '$year-$half';
+
+  String get label => '$year년 ${half == 1 ? '1기' : '2기'}';
+
+  String get monthRangeLabel => half == 1 ? '1월~6월' : '7월~12월';
+
+  int get totalMonths => 6;
+
+  /// 상수(공제율/한도 등)를 적용할 기준 날짜. 거래가 발생한 연도 안에서 판단한다.
+  DateTime get constantsDate => half == 1
+      ? DateTime(year, 6, 30, 23, 59, 59)
+      : DateTime(year, 12, 31, 23, 59, 59);
 }

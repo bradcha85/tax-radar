@@ -71,9 +71,7 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
 
   /// 간단 절감 효과 추정치 (한도 미반영, 공제율만 적용)
   int _estimateVatSavings(BusinessProvider provider, int amount) {
-    final now = DateTime.now();
     final business = provider.business;
-    final taxBase = provider.vatBreakdown.taxBase;
 
     final isRestaurant =
         business.businessType == 'restaurant' ||
@@ -82,11 +80,7 @@ class _DeemedPurchaseScreenState extends State<DeemedPurchaseScreen> {
       return (amount * 2 / 102).round();
     }
 
-    final specialEnd = DateTime(2026, 12, 31, 23, 59, 59);
-    final useNineOver109 = !now.isAfter(specialEnd) && taxBase <= 200000000;
-    return useNineOver109
-        ? (amount * 9 / 109).round()
-        : (amount * 8 / 108).round();
+    return (amount * 8 / 108).round();
   }
 
   void _onSave() {

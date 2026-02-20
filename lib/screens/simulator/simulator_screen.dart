@@ -79,7 +79,9 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${Formatters.toManWon(currentVat.predictedMin)} ~ ${Formatters.toManWonWithUnit(currentVat.predictedMax)}',
+                    currentVat.isRefund
+                        ? '환급 ${Formatters.toManWon(currentVat.predictedMin)} ~ ${Formatters.toManWonWithUnit(currentVat.predictedMax)}'
+                        : '${Formatters.toManWon(currentVat.predictedMin)} ~ ${Formatters.toManWonWithUnit(currentVat.predictedMax)}',
                     style: AppTypography.amountMedium,
                   ),
                 ],
@@ -189,7 +191,9 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
                 children: [
                   _resultRow(
                     '\uBD80\uAC00\uC138',
-                    '${Formatters.toManWon(simVat.predictedMin)} ~ ${Formatters.toManWonWithUnit(simVat.predictedMax)}',
+                    simVat.isRefund
+                        ? '환급 ${Formatters.toManWon(simVat.predictedMin)} ~ ${Formatters.toManWonWithUnit(simVat.predictedMax)}'
+                        : '${Formatters.toManWon(simVat.predictedMin)} ~ ${Formatters.toManWonWithUnit(simVat.predictedMax)}',
                     termId: 'V01',
                   ),
                   const SizedBox(height: 12),
@@ -304,18 +308,37 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
 
   // Simulate VAT with deltas applied per month
   TaxPrediction _simulateVat(BusinessProvider provider) {
+    final vatPeriod = provider.vatPeriod;
+    final period = vatPeriod.label;
     final now = DateTime.now();
-    final currentHalfStart = now.month <= 6
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, 7, 1);
-    final period = Formatters.getVatPeriod(now);
+
+    DateTime completionEnd;
+    if (now.isBefore(vatPeriod.start)) {
+      completionEnd = vatPeriod.start;
+    } else {
+      final nowMonthStart = DateTime(now.year, now.month, 1);
+      if (!nowMonthStart.isBefore(vatPeriod.end)) {
+        completionEnd = vatPeriod.end;
+      } else {
+        completionEnd = DateTime(nowMonthStart.year, nowMonthStart.month + 1, 1);
+      }
+    }
+
+    final monthsInPeriod =
+        ((completionEnd.year - vatPeriod.start.year) * 12 +
+                (completionEnd.month - vatPeriod.start.month))
+            .clamp(0, vatPeriod.totalMonths);
 
     final salesDeltaInt = _salesDelta.round();
     final expenseDeltaInt = _expenseDelta.round();
 
     // Apply delta to each month's sales
     final modifiedSales = provider.salesList
-        .where((s) => !s.yearMonth.isBefore(currentHalfStart))
+        .where(
+          (s) =>
+              !s.yearMonth.isBefore(vatPeriod.start) &&
+              s.yearMonth.isBefore(completionEnd),
+        )
         .map(
           (s) => MonthlySales(
             yearMonth: s.yearMonth,
@@ -331,7 +354,11 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
         .toList();
 
     final modifiedExpenses = provider.expensesList
-        .where((e) => !e.yearMonth.isBefore(currentHalfStart))
+        .where(
+          (e) =>
+              !e.yearMonth.isBefore(vatPeriod.start) &&
+              e.yearMonth.isBefore(completionEnd),
+        )
         .map(
           (e) => MonthlyExpenses(
             yearMonth: e.yearMonth,
@@ -345,8 +372,19 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
         .toList();
 
     final halfDeemed = provider.deemedPurchases
-        .where((d) => !d.yearMonth.isBefore(currentHalfStart))
+        .where(
+          (d) =>
+              !d.yearMonth.isBefore(vatPeriod.start) &&
+              d.yearMonth.isBefore(completionEnd),
+        )
         .toList();
+
+    final filledMonths = modifiedSales.length.clamp(0, monthsInPeriod);
+    final totalPeriodMonths = provider.vatExtrapolationEnabled
+        ? vatPeriod.totalMonths
+        : filledMonths <= 0
+        ? 1
+        : filledMonths.clamp(1, vatPeriod.totalMonths);
 
     return TaxCalculator.calculateVat(
       business: provider.business,
@@ -355,6 +393,10 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
       deemedPurchases: halfDeemed,
       accuracyScore: provider.accuracyScore,
       period: period,
+      filledMonths: filledMonths,
+      totalPeriodMonths: totalPeriodMonths,
+      cardCreditUsedThisYear: provider.vatCardCreditUsedThisYear,
+      asOf: vatPeriod.constantsDate,
     );
   }
 

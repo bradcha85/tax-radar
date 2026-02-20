@@ -5,6 +5,7 @@ class TaxPrediction {
   int predictedMax;
   int accuracyScore; // 0~100
   int? actualAmount;
+  bool isRefund;
 
   TaxPrediction({
     required this.taxType,
@@ -13,6 +14,7 @@ class TaxPrediction {
     required this.predictedMax,
     required this.accuracyScore,
     this.actualAmount,
+    this.isRefund = false,
   });
 
   /// 범위 중간값

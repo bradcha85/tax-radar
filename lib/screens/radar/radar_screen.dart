@@ -29,7 +29,7 @@ class RadarScreen extends StatelessWidget {
     final showIncomeBanner = incomeDaysLeft <= 30 && incomeDaysLeft >= 0;
 
     final freshnessPercent = _calcFreshness(provider.lastUpdate);
-    final vatPeriod = Formatters.getVatPeriod(now);
+    final vatPeriod = provider.vatPeriod.label;
     final accuracyScore = provider.accuracyScore;
 
     return Scaffold(
@@ -75,6 +75,7 @@ class RadarScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _buildVatCard(
                   context,
+                  provider,
                   vatPrediction,
                   nextVatDeadline,
                   accuracyScore,
@@ -296,6 +297,7 @@ class RadarScreen extends StatelessWidget {
 
   Widget _buildVatCard(
     BuildContext context,
+    BusinessProvider provider,
     TaxPrediction prediction,
     DateTime deadline,
     int accuracyScore,
@@ -378,15 +380,37 @@ class RadarScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // 금액 (accent gold)
-            Text(
-              '약 ${Formatters.toManWon(prediction.midPoint)}원',
-              style: GoogleFonts.notoSans(
-                fontSize: 30,
-                fontWeight: FontWeight.w700,
-                color: AppColors.accent,
-                letterSpacing: -0.5,
-              ),
+            // 금액 (accent gold) — 기납부 반영
+            Builder(
+              builder: (context) {
+                final prepayment = provider.vatPrepaymentEffectiveAmount;
+                String text;
+                if (prepayment == null) {
+                  text = prediction.isRefund
+                      ? '환급 최소 ${Formatters.toManWon(prediction.predictedMin)}원'
+                      : '최대 ${Formatters.toManWon(prediction.predictedMax)}원';
+                } else {
+                  final decisionSignedMid =
+                      prediction.isRefund ? -prediction.midPoint : prediction.midPoint;
+                  final actualSignedMid = decisionSignedMid - prepayment;
+                  if (actualSignedMid < 0) {
+                    text =
+                        '환급 약 ${Formatters.toManWon(-actualSignedMid)}원';
+                  } else {
+                    text =
+                        '추가 약 ${Formatters.toManWon(actualSignedMid)}원';
+                  }
+                }
+                return Text(
+                  text,
+                  style: GoogleFonts.notoSans(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.accent,
+                    letterSpacing: -0.5,
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 20),
 
