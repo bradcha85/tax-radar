@@ -55,7 +55,7 @@ class _SalesInputScreenState extends State<SalesInputScreen> {
 
   int get _cardSales => (_totalSales * _cardRatio).round();
   int get _cashReceiptSales => (_totalSales * 0.10).round();
-  int get _otherCashSales => _totalSales - _cardSales - _cashReceiptSales;
+  int get _otherCashSales => (_totalSales - _cardSales - _cashReceiptSales).clamp(0, _totalSales);
 
   bool _monthHasData(DateTime month) {
     final provider = context.read<BusinessProvider>();

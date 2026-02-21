@@ -17,6 +17,7 @@ import '../screens/tax_detail/tax_detail_screen.dart';
 import '../screens/simulator/simulator_screen.dart';
 import '../screens/precision_tax/precision_tax_screen.dart';
 import '../screens/glossary/glossary_screen.dart';
+import '../screens/settings/privacy_policy_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -96,6 +97,10 @@ class AppRouter {
         GoRoute(
           path: '/glossary',
           builder: (context, state) => const GlossaryScreen(),
+        ),
+        GoRoute(
+          path: '/privacy-policy',
+          builder: (context, state) => const PrivacyPolicyScreen(),
         ),
 
         // Data input sub-screens

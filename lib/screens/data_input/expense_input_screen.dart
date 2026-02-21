@@ -27,6 +27,23 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
     super.initState();
     _months = _getLast6Months();
     _selectedMonth = _months.last;
+    _loadExistingData();
+  }
+
+  void _loadExistingData() {
+    final provider = context.read<BusinessProvider>();
+    final existing = provider.expensesList
+        .where(
+          (e) =>
+              e.yearMonth.year == _selectedMonth.year &&
+              e.yearMonth.month == _selectedMonth.month,
+        )
+        .firstOrNull;
+    if (existing != null) {
+      _totalController.text = Formatters.formatWon(existing.totalExpenses);
+    } else {
+      _totalController.clear();
+    }
   }
 
   List<DateTime> _getLast6Months() {
@@ -110,7 +127,10 @@ class _ExpenseInputScreenState extends State<ExpenseInputScreen> {
                       month.month == _selectedMonth.month;
 
                   return GestureDetector(
-                    onTap: () => setState(() => _selectedMonth = month),
+                    onTap: () {
+                      setState(() => _selectedMonth = month);
+                      _loadExistingData();
+                    },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(

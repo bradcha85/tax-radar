@@ -70,108 +70,129 @@ class BusinessProvider extends ChangeNotifier {
   }
 
   void _loadFromStorage() {
-    // Business
-    final businessJson = _box.get('business');
-    if (businessJson != null) {
-      _business = Business.fromJson(Map<String, dynamic>.from(businessJson));
-    }
-
-    // Profile
-    final profileJson = _box.get('profile');
-    if (profileJson != null) {
-      _profile = UserProfile.fromJson(Map<String, dynamic>.from(profileJson));
-    }
-
-    // Sales
-    final salesJsonList = _box.get('salesList');
-    if (salesJsonList != null) {
-      _salesList.clear();
-      for (final item in salesJsonList) {
-        _salesList.add(MonthlySales.fromJson(Map<String, dynamic>.from(item)));
+    try {
+      // Business
+      final businessJson = _box.get('business');
+      if (businessJson != null) {
+        _business = Business.fromJson(Map<String, dynamic>.from(businessJson));
       }
-      _salesList.sort((a, b) => a.yearMonth.compareTo(b.yearMonth));
-    }
 
-    // Expenses
-    final expensesJsonList = _box.get('expensesList');
-    if (expensesJsonList != null) {
-      _expensesList.clear();
-      for (final item in expensesJsonList) {
-        _expensesList.add(
-          MonthlyExpenses.fromJson(Map<String, dynamic>.from(item)),
+      // Profile
+      final profileJson = _box.get('profile');
+      if (profileJson != null) {
+        _profile =
+            UserProfile.fromJson(Map<String, dynamic>.from(profileJson));
+      }
+
+      // Sales
+      final salesJsonList = _box.get('salesList');
+      if (salesJsonList != null) {
+        _salesList.clear();
+        for (final item in salesJsonList) {
+          try {
+            _salesList.add(
+              MonthlySales.fromJson(Map<String, dynamic>.from(item)),
+            );
+          } catch (e) {
+            debugPrint('[TaxRadar] salesList 항목 파싱 실패: $e');
+          }
+        }
+        _salesList.sort((a, b) => a.yearMonth.compareTo(b.yearMonth));
+      }
+
+      // Expenses
+      final expensesJsonList = _box.get('expensesList');
+      if (expensesJsonList != null) {
+        _expensesList.clear();
+        for (final item in expensesJsonList) {
+          try {
+            _expensesList.add(
+              MonthlyExpenses.fromJson(Map<String, dynamic>.from(item)),
+            );
+          } catch (e) {
+            debugPrint('[TaxRadar] expensesList 항목 파싱 실패: $e');
+          }
+        }
+        _expensesList.sort((a, b) => a.yearMonth.compareTo(b.yearMonth));
+      }
+
+      // Deemed purchases
+      final deemedJsonList = _box.get('deemedPurchases');
+      if (deemedJsonList != null) {
+        _deemedPurchases.clear();
+        for (final item in deemedJsonList) {
+          try {
+            _deemedPurchases.add(
+              DeemedPurchase.fromJson(Map<String, dynamic>.from(item)),
+            );
+          } catch (e) {
+            debugPrint('[TaxRadar] deemedPurchases 항목 파싱 실패: $e');
+          }
+        }
+        _deemedPurchases.sort((a, b) => a.yearMonth.compareTo(b.yearMonth));
+      }
+
+      // App state
+      _onboardingComplete =
+          _box.get('onboardingComplete', defaultValue: false);
+
+      final lastUpdateStr = _box.get('lastUpdate');
+      if (lastUpdateStr != null) {
+        _lastUpdate = DateTime.tryParse(lastUpdateStr);
+      }
+
+      final precisionDraftJson = _box.get('precisionTaxDraft');
+      if (precisionDraftJson is Map) {
+        _precisionTaxDraft = PrecisionTaxDraft.fromJson(
+          Map<String, dynamic>.from(precisionDraftJson),
+        );
+      } else {
+        _precisionTaxDraft = PrecisionTaxDraft.initial(now: DateTime.now());
+      }
+
+      final favoriteGlossaryIds = _box.get('favoriteGlossaryIds');
+      _favoriteGlossaryIds.clear();
+      if (favoriteGlossaryIds is List) {
+        _favoriteGlossaryIds.addAll(
+          favoriteGlossaryIds.whereType<String>().where(
+            (item) => item.trim().isNotEmpty,
+          ),
         );
       }
-      _expensesList.sort((a, b) => a.yearMonth.compareTo(b.yearMonth));
-    }
 
-    // Deemed purchases
-    final deemedJsonList = _box.get('deemedPurchases');
-    if (deemedJsonList != null) {
-      _deemedPurchases.clear();
-      for (final item in deemedJsonList) {
-        _deemedPurchases.add(
-          DeemedPurchase.fromJson(Map<String, dynamic>.from(item)),
+      final recentGlossaryIds = _box.get('recentGlossaryIds');
+      _recentGlossaryIds.clear();
+      if (recentGlossaryIds is List) {
+        _recentGlossaryIds.addAll(
+          recentGlossaryIds.whereType<String>().where(
+            (item) => item.trim().isNotEmpty,
+          ),
         );
       }
-      _deemedPurchases.sort((a, b) => a.yearMonth.compareTo(b.yearMonth));
-    }
 
-    // App state
-    _onboardingComplete = _box.get('onboardingComplete', defaultValue: false);
-
-    final lastUpdateStr = _box.get('lastUpdate');
-    if (lastUpdateStr != null) {
-      _lastUpdate = DateTime.tryParse(lastUpdateStr);
-    }
-
-    final precisionDraftJson = _box.get('precisionTaxDraft');
-    if (precisionDraftJson is Map) {
-      _precisionTaxDraft = PrecisionTaxDraft.fromJson(
-        Map<String, dynamic>.from(precisionDraftJson),
+      _vatExtrapolationEnabled = _box.get(
+        'vatExtrapolationEnabled',
+        defaultValue: true,
       );
-    } else {
-      _precisionTaxDraft = PrecisionTaxDraft.initial(now: DateTime.now());
-    }
 
-    final favoriteGlossaryIds = _box.get('favoriteGlossaryIds');
-    _favoriteGlossaryIds.clear();
-    if (favoriteGlossaryIds is List) {
-      _favoriteGlossaryIds.addAll(
-        favoriteGlossaryIds.whereType<String>().where(
-          (item) => item.trim().isNotEmpty,
-        ),
+      _vatPrepaymentPeriodKey = _box.get('vatPrepaymentPeriodKey') as String?;
+      final vatPrepaymentStatusRaw =
+          _box.get('vatPrepaymentStatus') as String?;
+      _vatPrepaymentStatus = VatPrepaymentStatus.values.firstWhere(
+        (item) => item.name == vatPrepaymentStatusRaw,
+        orElse: () => VatPrepaymentStatus.unset,
       );
-    }
+      final vatPrepaymentAmountRaw = _box.get('vatPrepaymentAmount');
+      _vatPrepaymentAmount =
+          vatPrepaymentAmountRaw is int ? vatPrepaymentAmountRaw : null;
 
-    final recentGlossaryIds = _box.get('recentGlossaryIds');
-    _recentGlossaryIds.clear();
-    if (recentGlossaryIds is List) {
-      _recentGlossaryIds.addAll(
-        recentGlossaryIds.whereType<String>().where(
-          (item) => item.trim().isNotEmpty,
-        ),
+      _glossaryHelpModeEnabled = _box.get(
+        'glossaryHelpModeEnabled',
+        defaultValue: false,
       );
+    } catch (e) {
+      debugPrint('[TaxRadar] _loadFromStorage 실패, 기본값 사용: $e');
     }
-
-    _vatExtrapolationEnabled = _box.get(
-      'vatExtrapolationEnabled',
-      defaultValue: true,
-    );
-
-    _vatPrepaymentPeriodKey = _box.get('vatPrepaymentPeriodKey') as String?;
-    final vatPrepaymentStatusRaw = _box.get('vatPrepaymentStatus') as String?;
-    _vatPrepaymentStatus = VatPrepaymentStatus.values.firstWhere(
-      (item) => item.name == vatPrepaymentStatusRaw,
-      orElse: () => VatPrepaymentStatus.unset,
-    );
-    final vatPrepaymentAmountRaw = _box.get('vatPrepaymentAmount');
-    _vatPrepaymentAmount =
-        vatPrepaymentAmountRaw is int ? vatPrepaymentAmountRaw : null;
-
-    _glossaryHelpModeEnabled = _box.get(
-      'glossaryHelpModeEnabled',
-      defaultValue: false,
-    );
 
     notifyListeners();
   }
@@ -197,6 +218,30 @@ class BusinessProvider extends ChangeNotifier {
     if (_lastUpdate != null) {
       _box.put('lastUpdate', _lastUpdate!.toIso8601String());
     }
+  }
+
+  // ============================================================
+  // Data Reset
+  // ============================================================
+
+  Future<void> resetAllData() async {
+    await _box.clear();
+    _business = Business();
+    _profile = UserProfile();
+    _salesList.clear();
+    _expensesList.clear();
+    _deemedPurchases.clear();
+    _onboardingComplete = false;
+    _lastUpdate = null;
+    _precisionTaxDraft = PrecisionTaxDraft.initial(now: DateTime.now());
+    _favoriteGlossaryIds.clear();
+    _recentGlossaryIds.clear();
+    _vatExtrapolationEnabled = true;
+    _vatPrepaymentPeriodKey = null;
+    _vatPrepaymentStatus = VatPrepaymentStatus.unset;
+    _vatPrepaymentAmount = null;
+    _glossaryHelpModeEnabled = false;
+    notifyListeners();
   }
 
   // ============================================================

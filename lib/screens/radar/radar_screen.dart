@@ -192,38 +192,6 @@ class RadarScreen extends StatelessWidget {
               ),
             ],
           ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {},
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Stack(
-                  children: [
-                    const Icon(
-                      Icons.notifications_outlined,
-                      size: 24,
-                      color: AppColors.textHint,
-                    ),
-                    Positioned(
-                      top: 2,
-                      right: 2,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: AppColors.danger,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -704,7 +672,7 @@ class RadarScreen extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => context.go('/data'),
                 child: Row(
                   children: [
                     Text(

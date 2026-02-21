@@ -69,9 +69,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              context.go('/splash');
+              await context.read<BusinessProvider>().resetAllData();
+              if (context.mounted) context.go('/splash');
             },
             child: Text(
               '초기화',
@@ -264,9 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const _CardDivider(),
                     _NavRow(
                       label: '개인정보 처리방침',
-                      onTap: () {
-                        // TODO: 개인정보 처리방침
-                      },
+                      onTap: () => context.push('/privacy-policy'),
                     ),
                   ],
                 ),

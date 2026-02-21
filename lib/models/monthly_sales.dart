@@ -28,7 +28,7 @@ class MonthlySales {
   };
 
   factory MonthlySales.fromJson(Map<String, dynamic> json) => MonthlySales(
-    yearMonth: DateTime.parse(json['yearMonth'] as String),
+    yearMonth: DateTime.tryParse(json['yearMonth'] as String? ?? '') ?? DateTime(2000, 1, 1),
     totalSales: json['totalSales'] as int? ?? 0,
     cardSales: json['cardSales'] as int?,
     cashReceiptSales: json['cashReceiptSales'] as int?,

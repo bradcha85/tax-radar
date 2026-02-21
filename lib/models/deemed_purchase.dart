@@ -10,7 +10,7 @@ class DeemedPurchase {
   };
 
   factory DeemedPurchase.fromJson(Map<String, dynamic> json) => DeemedPurchase(
-    yearMonth: DateTime.parse(json['yearMonth'] as String),
+    yearMonth: DateTime.tryParse(json['yearMonth'] as String? ?? '') ?? DateTime(2000, 1, 1),
     amount: json['amount'] as int? ?? 0,
   );
 }
