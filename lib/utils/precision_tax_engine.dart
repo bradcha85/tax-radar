@@ -197,7 +197,7 @@ enum _BoundMode { base, lower, upper }
 class PrecisionTaxEngine {
   PrecisionTaxEngine._();
 
-  static const Set<int> _supportedConstantYears = {2025};
+  static const Set<int> _supportedConstantYears = {2025, 2026};
 
   static bool hasConstantsForYear(int year) {
     return _supportedConstantYears.contains(year);
@@ -1308,7 +1308,7 @@ class PrecisionTaxEngine {
 
   static int _applyTaxBracket(int taxBase, int year) {
     final applied = resolveAppliedYear(year);
-    if (applied == 2025) {
+    if (applied == 2025 || applied == 2026) {
       if (taxBase <= 14000000) {
         return (taxBase * 0.06).floor();
       }
@@ -1337,7 +1337,6 @@ class PrecisionTaxEngine {
 
   static int _yellowUmbrellaLimit(int businessIncome) {
     if (businessIncome <= 40000000) return 6000000;
-    if (businessIncome <= 60000000) return 5000000;
     if (businessIncome <= 100000000) return 4000000;
     return 2000000;
   }

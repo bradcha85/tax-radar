@@ -252,7 +252,10 @@ class TaxCalculator {
 
     final taxableIncome = annualRevenue - expenses;
     final personalDeduction = profile.personalDeduction;
-    final yellowUmbrellaAnnual = profile.yellowUmbrellaAnnual;
+    final yellowUmbrellaRaw = profile.yellowUmbrellaAnnual;
+    final yellowUmbrellaAnnual = yellowUmbrellaRaw < _yellowUmbrellaLimit(taxableIncome)
+        ? yellowUmbrellaRaw
+        : _yellowUmbrellaLimit(taxableIncome);
     final taxBase = taxableIncome - personalDeduction - yellowUmbrellaAnnual;
 
     final incomeTax = taxBase > 0 ? _applyTaxBracket(taxBase) : 0;
@@ -322,8 +325,30 @@ class TaxCalculator {
     required int taxBase,
     required DateTime asOf,
   }) {
-    if (taxBase <= 200000000) return 0.50;
-    return 0.40;
+    final isRestaurant = business.businessType == 'restaurant' ||
+        business.businessType == 'cafe';
+    final specialEnd = DateTime(2027, 12, 31, 23, 59, 59);
+
+    if (!asOf.isAfter(specialEnd)) {
+      // 우대한도율 (~2027.12.31)
+      if (isRestaurant) {
+        if (taxBase <= 100000000) return 0.75;
+        if (taxBase <= 200000000) return 0.70;
+        return 0.60;
+      } else {
+        if (taxBase <= 200000000) return 0.65;
+        return 0.55;
+      }
+    }
+
+    // 기본한도율 (2028~)
+    if (isRestaurant) {
+      if (taxBase <= 200000000) return 0.50;
+      return 0.40;
+    } else {
+      if (taxBase <= 200000000) return 0.40;
+      return 0.30;
+    }
   }
 
   static _Fraction _getDeemedCreditRate({
@@ -331,11 +356,17 @@ class TaxCalculator {
     required int taxBase,
     required DateTime asOf,
   }) {
-    final isRestaurant =
-        business.businessType == 'restaurant' ||
-        business.businessType == 'cafe';
+    final isRestaurant = business.businessType == 'restaurant';
+    final isCafe = business.businessType == 'cafe';
 
-    if (!isRestaurant) return const _Fraction(2, 102);
+    if (!isRestaurant && !isCafe) return const _Fraction(2, 102);
+
+    // 9/109 특례: 음식점(카페 제외) 과세표준 4억 이하, ~2026.12.31
+    if (isRestaurant && taxBase <= 400000000) {
+      final specialEnd = DateTime(2026, 12, 31, 23, 59, 59);
+      if (!asOf.isAfter(specialEnd)) return const _Fraction(9, 109);
+    }
+
     return const _Fraction(8, 108);
   }
 
@@ -384,6 +415,13 @@ class TaxCalculator {
     } else {
       return (taxBase * 0.45 - 65940000).round();
     }
+  }
+
+  /// 노란우산공제 소득별 한도 (2025 기준)
+  static int _yellowUmbrellaLimit(int businessIncome) {
+    if (businessIncome <= 40000000) return 6000000;
+    if (businessIncome <= 100000000) return 4000000;
+    return 2000000;
   }
 
   /// 정확도에 따른 마진율 (낮을수록 범위 넓음)
