@@ -650,7 +650,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '이번 반기에 이미 낸 부가세가 있나요?',
+                    '이번 반기에 예정고지로 납부한 금액이 있나요?',
                     style: AppTypography.textTheme.titleSmall,
                   ),
                   const SizedBox(height: 12),
@@ -669,6 +669,15 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                         }
                       });
                     },
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '예정고지는 보통 직전 반기 확정 납부세액의 50%가 고지돼요.',
+                      style: AppTypography.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textHint,
+                      ),
+                    ),
                   ),
                   if (isKnown) ...[
                     const SizedBox(height: 16),
@@ -689,6 +698,76 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                         hintText: '0',
                         suffixText: '원',
                       ),
+                    ),
+                    Builder(
+                      builder: (context) {
+                        final previousVatAmount = provider.profile.previousVatAmount;
+                        final suggested =
+                            previousVatAmount != null && previousVatAmount > 0
+                                ? previousVatAmount ~/ 2
+                                : null;
+                        if (suggested == null || suggested <= 0) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              '과거 이력에 직전 반기 확정 납부세액을 입력하면 50% 추천값을 사용할 수 있어요.',
+                              style: AppTypography.textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textHint),
+                            ),
+                          );
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.borderLight,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.border,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '예정고지 추천값',
+                                        style: AppTypography.caption,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${Formatters.toManWonWithUnit(suggested)} (직전 반기 확정 납부세액의 50%)',
+                                        style: AppTypography
+                                            .textTheme.bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    amountController.text =
+                                        Formatters.formatWon(suggested);
+                                    setSheetState(() {});
+                                  },
+                                  child: const Text('적용'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 8),
                     Align(

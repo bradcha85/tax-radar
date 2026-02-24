@@ -162,7 +162,7 @@ class _HistoryInputScreenState extends State<HistoryInputScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            _HintText(text: '알면 범위가 좁아져요'),
+            _HintText(text: '직전 반기 확정신고 납부세액이면 좋아요'),
             const SizedBox(height: 24),
 
             // Bookkeeping
