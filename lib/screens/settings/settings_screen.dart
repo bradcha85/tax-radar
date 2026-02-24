@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../providers/business_provider.dart';
@@ -13,8 +14,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _taxSeasonNotif = true;
-  bool _monthlyInputNotif = true;
+  bool _notificationsBusy = false;
 
   String _businessTypeLabel(String type) {
     switch (type) {
@@ -45,6 +45,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (profile.childrenCount > 0) parts.add('자녀 ${profile.childrenCount}명');
     if (profile.supportsParents) parts.add('부모님');
     return parts.join(', ');
+  }
+
+  Future<void> _toggleWeeklyReminder(bool enabled) async {
+    if (_notificationsBusy) return;
+    setState(() => _notificationsBusy = true);
+
+    final provider = context.read<BusinessProvider>();
+    await NotificationService.initialize();
+    if (!mounted) return;
+
+    if (enabled) {
+      final granted = await NotificationService.requestPermissionIfNeeded();
+      if (!granted) {
+        await NotificationService.cancelWeeklyReminder();
+        provider.setWeeklyReminderEnabled(false);
+        if (mounted) {
+          _showPermissionDeniedDialog();
+        }
+        if (mounted) setState(() => _notificationsBusy = false);
+        return;
+      }
+
+      await NotificationService.scheduleWeeklyReminder(
+        weekday: DateTime.monday,
+        hour: 15,
+        minute: 0,
+      );
+      provider.setWeeklyReminderEnabled(true);
+    } else {
+      await NotificationService.cancelWeeklyReminder();
+      provider.setWeeklyReminderEnabled(false);
+    }
+
+    if (mounted) setState(() => _notificationsBusy = false);
+  }
+
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('알림 권한이 필요해요', style: AppTypography.textTheme.titleMedium),
+        content: Text(
+          '알림이 꺼져 있어서 리마인드를 켤 수 없어요.\n\n'
+          '휴대폰 설정에서 세금레이더 알림을 허용한 뒤 다시 시도해 주세요.',
+          style: AppTypography.textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              '확인',
+              style: AppTypography.textTheme.labelLarge?.copyWith(
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showResetDialog(BuildContext context) {
@@ -139,7 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () =>
-                            context.push('/onboarding/business-info'),
+                            context.push('/settings/business-info'),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(
@@ -230,18 +291,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () => context.push('/simulator'),
                     ),
                     const _CardDivider(),
-                    // 세금 시즌 알림
+                    // 주간 입력 리마인드
                     _ToggleRow(
-                      label: '세금 시즌 알림',
-                      value: _taxSeasonNotif,
-                      onChanged: (v) => setState(() => _taxSeasonNotif = v),
-                    ),
-                    const _CardDivider(),
-                    // 월별 입력 알림
-                    _ToggleRow(
-                      label: '월별 입력 알림',
-                      value: _monthlyInputNotif,
-                      onChanged: (v) => setState(() => _monthlyInputNotif = v),
+                      label: '주간 입력 알림',
+                      sub: '매주 월요일 오후 3시에 알려드려요',
+                      value: provider.weeklyReminderEnabled,
+                      enabled: !_notificationsBusy,
+                      onChanged: _toggleWeeklyReminder,
                     ),
                     const _CardDivider(),
                     // 데이터 초기화
@@ -451,12 +507,14 @@ class _ToggleRow extends StatelessWidget {
   final String? sub;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final bool enabled;
 
   const _ToggleRow({
     required this.label,
     this.sub,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
   });
 
   @override
@@ -486,7 +544,7 @@ class _ToggleRow extends StatelessWidget {
             height: 28,
             child: Switch(
               value: value,
-              onChanged: onChanged,
+              onChanged: enabled ? onChanged : null,
               activeTrackColor: AppColors.primary,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),

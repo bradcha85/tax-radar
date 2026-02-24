@@ -61,6 +61,9 @@ class BusinessProvider extends ChangeNotifier {
   bool _glossaryHelpModeEnabled = false;
   bool get glossaryHelpModeEnabled => _glossaryHelpModeEnabled;
 
+  bool _weeklyReminderEnabled = false;
+  bool get weeklyReminderEnabled => _weeklyReminderEnabled;
+
   late Box _box;
 
   Future<void> init() async {
@@ -190,6 +193,11 @@ class BusinessProvider extends ChangeNotifier {
         'glossaryHelpModeEnabled',
         defaultValue: false,
       );
+
+      _weeklyReminderEnabled = _box.get(
+        'weeklyReminderEnabled',
+        defaultValue: false,
+      );
     } catch (e) {
       debugPrint('[TaxRadar] _loadFromStorage 실패, 기본값 사용: $e');
     }
@@ -215,6 +223,7 @@ class BusinessProvider extends ChangeNotifier {
     _box.put('vatPrepaymentStatus', _vatPrepaymentStatus.name);
     _box.put('vatPrepaymentAmount', _vatPrepaymentAmount);
     _box.put('glossaryHelpModeEnabled', _glossaryHelpModeEnabled);
+    _box.put('weeklyReminderEnabled', _weeklyReminderEnabled);
     if (_lastUpdate != null) {
       _box.put('lastUpdate', _lastUpdate!.toIso8601String());
     }
@@ -241,6 +250,7 @@ class BusinessProvider extends ChangeNotifier {
     _vatPrepaymentStatus = VatPrepaymentStatus.unset;
     _vatPrepaymentAmount = null;
     _glossaryHelpModeEnabled = false;
+    _weeklyReminderEnabled = false;
     notifyListeners();
   }
 
@@ -462,6 +472,13 @@ class BusinessProvider extends ChangeNotifier {
   void setGlossaryHelpModeEnabled(bool enabled) {
     if (_glossaryHelpModeEnabled == enabled) return;
     _glossaryHelpModeEnabled = enabled;
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  void setWeeklyReminderEnabled(bool enabled) {
+    if (_weeklyReminderEnabled == enabled) return;
+    _weeklyReminderEnabled = enabled;
     notifyListeners();
     _saveToStorage();
   }

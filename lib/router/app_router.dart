@@ -102,6 +102,10 @@ class AppRouter {
           path: '/privacy-policy',
           builder: (context, state) => const PrivacyPolicyScreen(),
         ),
+        GoRoute(
+          path: '/settings/business-info',
+          builder: (context, state) => const BusinessInfoScreen(isEditing: true),
+        ),
 
         // Data input sub-screens
         GoRoute(

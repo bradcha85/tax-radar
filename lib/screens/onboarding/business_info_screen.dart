@@ -9,7 +9,9 @@ import '../../widgets/chip_selector.dart';
 import '../../widgets/glossary_help_text.dart';
 
 class BusinessInfoScreen extends StatefulWidget {
-  const BusinessInfoScreen({super.key});
+  final bool isEditing;
+
+  const BusinessInfoScreen({super.key, this.isEditing = false});
 
   @override
   State<BusinessInfoScreen> createState() => _BusinessInfoScreenState();
@@ -19,6 +21,16 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
   String _businessType = 'restaurant';
   String _taxType = 'general';
   String _vatInclusive = 'inclusive';
+
+  @override
+  void initState() {
+    super.initState();
+
+    final business = context.read<BusinessProvider>().business;
+    _businessType = business.businessType;
+    _taxType = business.taxType;
+    _vatInclusive = business.vatInclusive ? 'inclusive' : 'exclusive';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +46,9 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.go('/onboarding/value'),
+          onPressed: () => context.go(
+            widget.isEditing ? '/settings' : '/onboarding/value',
+          ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
@@ -150,7 +164,7 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
                     elevation: 0,
                   ),
                   child: Text(
-                    '다음',
+                    widget.isEditing ? '저장' : '다음',
                     style: AppTypography.textTheme.titleMedium?.copyWith(
                       color: AppColors.textOnPrimary,
                     ),
@@ -169,7 +183,7 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
   }
 
   void _onNext() {
-    final provider = Provider.of<BusinessProvider>(context, listen: false);
+    final provider = context.read<BusinessProvider>();
 
     // Map vatInclusive string to bool
     final vatInclusiveBool = _vatInclusive == 'exclusive'
@@ -182,6 +196,6 @@ class _BusinessInfoScreenState extends State<BusinessInfoScreen> {
       vatInclusive: vatInclusiveBool,
     );
 
-    context.go('/onboarding/first-sales');
+    context.go(widget.isEditing ? '/settings' : '/onboarding/first-sales');
   }
 }
