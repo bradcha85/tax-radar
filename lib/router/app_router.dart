@@ -65,15 +65,24 @@ class AppRouter {
           routes: [
             GoRoute(
               path: '/radar',
-              builder: (context, state) => const RadarScreen(),
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const RadarScreen(),
+              ),
             ),
             GoRoute(
               path: '/data',
-              builder: (context, state) => const DataInputScreen(),
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const DataInputScreen(),
+              ),
             ),
             GoRoute(
               path: '/settings',
-              builder: (context, state) => const SettingsScreen(),
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const SettingsScreen(),
+              ),
             ),
           ],
         ),

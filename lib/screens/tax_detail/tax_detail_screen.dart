@@ -329,21 +329,34 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
     // 기납부(예정고지/예정신고)
     final prepaymentStatus = provider.vatPrepaymentStatus;
     final prepaymentEffective = provider.vatPrepaymentEffectiveAmount;
+    final previousVatAmount = provider.profile.previousVatAmount;
+    final suggestedPrepayment =
+        previousVatAmount != null && previousVatAmount > 0
+            ? previousVatAmount ~/ 2
+            : null;
     final prepaymentText = switch (prepaymentStatus) {
       VatPrepaymentStatus.none => '없음',
       VatPrepaymentStatus.known =>
         Formatters.toManWonWithUnit(provider.vatPrepaymentAmount ?? 0),
       VatPrepaymentStatus.unknown => '모르겠어요',
-      VatPrepaymentStatus.unset => '미입력',
+      VatPrepaymentStatus.unset =>
+        suggestedPrepayment != null && suggestedPrepayment > 0
+            ? '추천 ${Formatters.toManWonWithUnit(suggestedPrepayment)}'
+            : '미입력',
     };
 
     // 실제 추가 납부/환급(예상) — 기납부 반영
     String actualLabel;
     Widget actualValue;
-    bool showPrepaymentUnreflectedBadge = false;
+    String? prepaymentUnreflectedBadgeText;
 
     if (prepaymentEffective == null) {
-      showPrepaymentUnreflectedBadge = true;
+      prepaymentUnreflectedBadgeText =
+          prepaymentStatus == VatPrepaymentStatus.unset &&
+                  suggestedPrepayment != null &&
+                  suggestedPrepayment > 0
+              ? '추천값 미반영'
+              : '기납부 미반영';
       if (prediction.isRefund) {
         actualLabel = '환급 가능(최소)';
         actualValue = Text(
@@ -425,7 +438,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
           ),
           const SizedBox(height: 4),
           actualValue,
-          if (showPrepaymentUnreflectedBadge) ...[
+          if (prepaymentUnreflectedBadgeText != null) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -434,7 +447,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                '기납부 미반영',
+                prepaymentUnreflectedBadgeText,
                 style: AppTypography.textTheme.labelSmall?.copyWith(
                   color: AppColors.warning,
                   fontWeight: FontWeight.w600,
@@ -567,6 +580,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
   }
 
   Future<void> _showVatPrepaymentSheet(BusinessProvider provider) async {
+    final rootContext = context;
     VatPrepaymentStatus status = provider.vatPrepaymentStatus;
     final initialAmount = provider.vatPrepaymentAmount;
     final amountController = TextEditingController(
@@ -607,9 +621,9 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return StatefulBuilder(
-          builder: (context, setSheetState) {
+          builder: (sheetContext, setSheetState) {
             final isKnown = status == VatPrepaymentStatus.known;
             final canSave =
                 status != VatPrepaymentStatus.unset &&
@@ -679,6 +693,82 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                       ),
                     ),
                   ),
+                  Builder(
+                    builder: (context) {
+                      final previousVatAmount = provider.profile.previousVatAmount;
+                      final suggested =
+                          previousVatAmount != null && previousVatAmount > 0
+                              ? previousVatAmount ~/ 2
+                              : null;
+
+                      if (suggested == null || suggested <= 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '과거 이력에 직전 반기 확정 납부세액을 입력하면 50% 추천값을 바로 쓸 수 있어요.',
+                                  style: AppTypography.textTheme.bodySmall
+                                      ?.copyWith(color: AppColors.textHint),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(sheetContext);
+                                  rootContext.push('/data/history');
+                                },
+                                child: const Text('입력하기'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.borderLight,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border, width: 1),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('예정고지 추천값', style: AppTypography.caption),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${Formatters.toManWonWithUnit(suggested)} (직전 반기 × 50%)',
+                                      style: AppTypography.textTheme.bodyMedium
+                                          ?.copyWith(fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  setSheetState(() {
+                                    status = VatPrepaymentStatus.known;
+                                    amountController.text =
+                                        Formatters.formatWon(suggested);
+                                  });
+                                },
+                                child: Text(isKnown ? '다시 적용' : '추천값 사용'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   if (isKnown) ...[
                     const SizedBox(height: 16),
                     Text(
@@ -699,76 +789,6 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                         suffixText: '원',
                       ),
                     ),
-                    Builder(
-                      builder: (context) {
-                        final previousVatAmount = provider.profile.previousVatAmount;
-                        final suggested =
-                            previousVatAmount != null && previousVatAmount > 0
-                                ? previousVatAmount ~/ 2
-                                : null;
-                        if (suggested == null || suggested <= 0) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              '과거 이력에 직전 반기 확정 납부세액을 입력하면 50% 추천값을 사용할 수 있어요.',
-                              style: AppTypography.textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.textHint),
-                            ),
-                          );
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.borderLight,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.border,
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '예정고지 추천값',
-                                        style: AppTypography.caption,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${Formatters.toManWonWithUnit(suggested)} (직전 반기 확정 납부세액의 50%)',
-                                        style: AppTypography
-                                            .textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    amountController.text =
-                                        Formatters.formatWon(suggested);
-                                    setSheetState(() {});
-                                  },
-                                  child: const Text('적용'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerRight,
@@ -788,7 +808,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                         child: SizedBox(
                           height: 48,
                           child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () => Navigator.pop(sheetContext),
                             child: const Text('취소'),
                           ),
                         ),
@@ -809,7 +829,7 @@ class _TaxDetailScreenState extends State<TaxDetailScreen> {
                                       status: status,
                                       amount: amount,
                                     );
-                                    Navigator.pop(context);
+                                    Navigator.pop(sheetContext);
                                   }
                                 : null,
                             child: const Text('저장'),
