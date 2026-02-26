@@ -32,8 +32,18 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_isInitialized) return;
-    _draft = context.read<BusinessProvider>().precisionTaxDraft;
+    final provider = context.read<BusinessProvider>();
+    _draft = provider.precisionTaxDraft;
     _isInitialized = true;
+
+    final migrated = _migrateLegacyIndustryExpenseEstimate(
+      draft: _draft,
+      businessType: provider.business.businessType,
+    );
+    if (!identical(migrated, _draft)) {
+      _draft = migrated;
+      provider.updatePrecisionTaxDraft(migrated);
+    }
   }
 
   @override
@@ -59,7 +69,13 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('정밀 종소세'),
+        title: Text(
+          '정밀 종소세',
+          style: AppTypography.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
@@ -67,7 +83,13 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
         actions: [
           TextButton(
             onPressed: () => context.push('/glossary'),
-            child: const Text('용어 사전'),
+            child: Text(
+              '용어 사전',
+              style: AppTypography.textTheme.bodyMedium?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -92,90 +114,50 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     const labels = ['시작', '소득', '공제', '기납부', '결과'];
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: List.generate(labels.length * 2 - 1, (i) {
-          // Even indices = step circles, odd indices = connector lines
-          if (i.isOdd) {
-            final stepBefore = i ~/ 2;
-            return Expanded(
-              child: Container(
-                height: 2,
-                color: stepBefore < _currentStep
-                    ? AppColors.primary
-                    : AppColors.border,
-              ),
-            );
-          }
+      width: double.infinity,
+      color: AppColors.surface,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        children: [
+          // Progress Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: List.generate(labels.length, (index) {
+                final isActive = index == _currentStep;
+                final isCompleted = index < _currentStep;
 
-          final index = i ~/ 2;
-          final isActive = index == _currentStep;
-          final isCompleted = index < _currentStep;
-
-          return GestureDetector(
-            onTap: () => setState(() => _currentStep = index),
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
-              width: 44,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isActive || isCompleted
-                          ? AppColors.primary
-                          : AppColors.surface,
-                      border: Border.all(
-                        color: isActive || isCompleted
-                            ? AppColors.primary
-                            : AppColors.border,
-                        width: 2,
+                return Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isActive || isCompleted
+                                ? AppColors.primary
+                                : AppColors.borderLight,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: isCompleted
-                          ? const Icon(
-                              Icons.check,
-                              size: 14,
-                              color: AppColors.textOnPrimary,
-                            )
-                          : Text(
-                              '${index + 1}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isActive
-                                    ? AppColors.textOnPrimary
-                                    : AppColors.textSecondary,
-                              ),
-                            ),
-                    ),
+                      if (index < labels.length - 1) const SizedBox(width: 4),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    labels[index],
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                      color: isActive
-                          ? AppColors.primary
-                          : isCompleted
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              }),
             ),
-          );
-        }),
+          ),
+          const SizedBox(height: 12),
+          // Step Label
+          Text(
+            '${_currentStep + 1}. ${labels[_currentStep]}',
+            style: AppTypography.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -205,17 +187,29 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
     final isLast = _currentStep == 4;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        border: Border(top: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
           Expanded(
             child: SizedBox(
-              height: 48,
-              child: OutlinedButton(
+              height: 52,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.surface,
+                  foregroundColor: AppColors.textPrimary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: AppColors.border),
+                  ),
+                  textStyle: AppTypography.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 onPressed: isFirst
                     ? () => context.pop()
                     : () => setState(() => _currentStep -= 1),
@@ -228,8 +222,21 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             Expanded(
               flex: 2,
               child: SizedBox(
-                height: 48,
+                height: 52,
                 child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.surface,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: AppTypography.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    disabledBackgroundColor: AppColors.border,
+                    disabledForegroundColor: AppColors.textHint,
+                  ),
                   onPressed: _canContinueStep(_currentStep)
                       ? () {
                           if (_currentStep >= 4) return;
@@ -259,11 +266,12 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         NotionCard(
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TermHelpHeader(title: '귀속연도 선택', termId: 'T21'),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _buildNotionChips(
                 options: [
                   _ChipOption('작년($lastYear, 신고용)', lastYear),
@@ -280,7 +288,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 style: AppTypography.caption,
               ),
               if (result.usesEstimatedYearConstants) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _NoticePill(
                   text: '상수표가 없어 ${result.breakdown.appliedYear}년 기준으로 예상 계산 중',
                 ),
@@ -288,8 +296,9 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         NotionCard(
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -301,6 +310,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 enabled: false,
                 onChanged: null,
               ),
+              const Divider(height: 1, color: AppColors.borderLight),
               _IncomeToggleRow(
                 label: '근로소득',
                 value: _draft.hasLaborIncome,
@@ -310,6 +320,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   );
                 },
               ),
+              const Divider(height: 1, color: AppColors.borderLight),
               _IncomeToggleRow(
                 label: '연금소득',
                 value: _draft.hasPensionIncome,
@@ -319,6 +330,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   );
                 },
               ),
+              const Divider(height: 1, color: AppColors.borderLight),
               _IncomeToggleRow(
                 label: '금융소득(이자/배당)',
                 value: _draft.hasFinancialIncome,
@@ -328,6 +340,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   );
                 },
               ),
+              const Divider(height: 1, color: AppColors.borderLight),
               _IncomeToggleRow(
                 label: '기타소득',
                 value: _draft.hasOtherIncome,
@@ -536,7 +549,10 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                 _notionOutlinedButton(
                   label: '모르겠어요(업종 추정)',
                   onPressed: () {
-                    final sales = _draft.annualSales.value ?? 0;
+                    final sales = _normalizeAnnualSalesForIncomeTax(
+                      _draft.annualSales.value ?? 0,
+                      _draft.annualSalesVatMode,
+                    );
                     final estimated =
                         (sales * _industryExpenseRatio(businessType)).round();
                     _setFieldDirect(
@@ -555,6 +571,54 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  int _normalizeAnnualSalesForIncomeTax(
+    int sales,
+    VatInclusionChoice vatChoice,
+  ) {
+    if (sales <= 0) return 0;
+    return switch (vatChoice) {
+      VatInclusionChoice.excluded => sales,
+      VatInclusionChoice.included => (sales / 1.1).round(),
+      VatInclusionChoice.unknown => (sales / 1.1).round(),
+    };
+  }
+
+  PrecisionTaxDraft _migrateLegacyIndustryExpenseEstimate({
+    required PrecisionTaxDraft draft,
+    required String businessType,
+  }) {
+    if (!draft.bookkeeping) return draft;
+    if (draft.businessInputMode != BusinessInputMode.annual) return draft;
+    if (draft.annualSalesVatMode != VatInclusionChoice.included) return draft;
+    if (!draft.annualSales.hasValue || !draft.annualExpenses.hasValue) {
+      return draft;
+    }
+    if (draft.annualExpenses.status != PrecisionValueStatus.estimatedIndustry) {
+      return draft;
+    }
+
+    final rawSales = draft.annualSales.safeValue;
+    if (rawSales <= 0) return draft;
+
+    final ratio = _industryExpenseRatio(businessType);
+    final legacyEstimate = (rawSales * ratio).round();
+    if (draft.annualExpenses.safeValue != legacyEstimate) return draft;
+
+    final normalizedSales = _normalizeAnnualSalesForIncomeTax(
+      rawSales,
+      draft.annualSalesVatMode,
+    );
+    final correctedEstimate = (normalizedSales * ratio).round();
+    if (correctedEstimate == legacyEstimate) return draft;
+
+    return draft.copyWith(
+      annualExpenses: NumericField(
+        value: correctedEstimate,
+        status: PrecisionValueStatus.estimatedIndustry,
+      ),
     );
   }
 
@@ -889,7 +953,9 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   hint: '대상 자녀 수(명)',
                   statusLabel: _draft.childTaxCreditCount.status.label,
                   onChanged: (field) {
-                    _updateDraft((draft) => draft.copyWith(childTaxCreditCount: field));
+                    _updateDraft(
+                      (draft) => draft.copyWith(childTaxCreditCount: field),
+                    );
                   },
                   isCount: true,
                 ),
@@ -929,8 +995,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   statusLabel: _draft.employmentIncreaseCount.status.label,
                   onChanged: (field) {
                     _updateDraft(
-                      (draft) =>
-                          draft.copyWith(employmentIncreaseCount: field),
+                      (draft) => draft.copyWith(employmentIncreaseCount: field),
                     );
                   },
                   isCount: true,
@@ -1003,7 +1068,9 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   hint: '농어촌특별세(원)',
                   statusLabel: _draft.ruralSpecialTax.status.label,
                   onChanged: (field) {
-                    _updateDraft((draft) => draft.copyWith(ruralSpecialTax: field));
+                    _updateDraft(
+                      (draft) => draft.copyWith(ruralSpecialTax: field),
+                    );
                   },
                 ),
                 const SizedBox(height: 8),
@@ -1892,23 +1959,45 @@ class _IncomeRangeOption {
 class _IncomeToggleRow extends StatelessWidget {
   final String label;
   final bool value;
-  final bool enabled;
   final ValueChanged<bool>? onChanged;
+  final bool enabled;
 
   const _IncomeToggleRow({
     required this.label,
     required this.value,
+    this.onChanged,
     this.enabled = true,
-    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      value: value,
-      onChanged: enabled ? onChanged : null,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: AppTypography.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: enabled ? AppColors.textPrimary : AppColors.textHint,
+            ),
+          ),
+          SizedBox(
+            height: 28,
+            child: Switch(
+              value: value,
+              onChanged: enabled ? onChanged : null,
+              activeColor: AppColors.surface,
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.border,
+              inactiveThumbColor: AppColors.surface,
+              trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

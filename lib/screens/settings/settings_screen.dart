@@ -155,104 +155,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          '설정',
+          style: AppTypography.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        centerTitle: false,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 헤더
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
-                child: Text('설정', style: AppTypography.textTheme.headlineLarge),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Text(
-                  '사업장 정보 및 앱 환경을 관리해요',
-                  style: AppTypography.caption,
-                ),
-              ),
-
-              // ── 사업장 정보 ──────────────────────────────
-              _SectionLabel(title: '사업장 정보'),
+              // ── 프로필 섹션 ──────────────────────────────
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _GroupCard(
+                child: Row(
                   children: [
-                    _InfoRow(
-                      label: '업종',
-                      value: _businessTypeLabel(business.businessType),
-                    ),
-                    const _CardDivider(),
-                    _InfoRow(
-                      label: '과세유형',
-                      value: _taxTypeLabel(business.taxType),
-                      valueColor: AppColors.primary,
-                    ),
-                    const _CardDivider(),
-                    _InfoRow(
-                      label: 'VAT 포함',
-                      value: business.vatInclusive ? '예' : '아니요',
-                    ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () =>
-                            context.push('/settings/business-info'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          '수정',
-                          style: AppTypography.textTheme.labelLarge
-                              ?.copyWith(color: AppColors.primary),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.storefront,
+                          color: AppColors.primary,
+                          size: 28,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // ── 부양가족 정보 ─────────────────────────────
-              _SectionLabel(title: '부양가족 정보'),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _GroupCard(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _dependentsLabel(provider),
-                            style: AppTypography.textTheme.bodyMedium,
+                            '내 사업장',
+                            style: AppTypography.textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
                           ),
-                          TextButton(
-                            onPressed: () => context.push('/data/history'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AppColors.border),
                             ),
                             child: Text(
-                              '수정',
-                              style: AppTypography.textTheme.labelLarge
-                                  ?.copyWith(color: AppColors.primary),
+                              _businessTypeLabel(business.businessType),
+                              style: AppTypography.textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                             ),
                           ),
                         ],
@@ -261,48 +233,107 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
+
+              // ── 사업장 관리 ──────────────────────────────
+              _SectionLabel(title: '사업장 관리'),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _GroupCard(
+                  children: [
+                    _NavRow(
+                      icon: Icons.business_outlined,
+                      label: '사업장 기본 정보',
+                      sub:
+                          '${_taxTypeLabel(business.taxType)} · VAT ${business.vatInclusive ? '포함' : '별도'}',
+                      onTap: () => context.push('/settings/business-info'),
+                    ),
+                    const _CardDivider(),
+                    _NavRow(
+                      icon: Icons.family_restroom_outlined,
+                      label: '부양가족 설정',
+                      sub: _dependentsLabel(provider),
+                      onTap: () => context.push('/data/history'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
 
               // ── 앱 설정 ──────────────────────────────────
               _SectionLabel(title: '앱 설정'),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _GroupCard(
                   children: [
                     // 상세설명 모드
                     _ToggleRow(
+                      icon: Icons.info_outline,
                       label: '상세설명 모드',
                       sub: '세금 용어에 ⓘ 아이콘을 표시해요',
                       value: provider.glossaryHelpModeEnabled,
                       onChanged: (v) => provider.setGlossaryHelpModeEnabled(v),
                     ),
                     const _CardDivider(),
-                    // 용어 사전
-                    _NavRow(
-                      label: '용어 사전',
-                      onTap: () => context.push('/glossary'),
-                    ),
-                    const _CardDivider(),
-                    // 세금 시뮬레이터
-                    _NavRow(
-                      label: '세금 시뮬레이터',
-                      sub: '예상 세액 미리보기',
-                      onTap: () => context.push('/simulator'),
-                    ),
-                    const _CardDivider(),
                     // 주간 입력 리마인드
                     _ToggleRow(
+                      icon: Icons.notifications_none_outlined,
                       label: '주간 입력 알림',
                       sub: '매주 월요일 오후 3시에 알려드려요',
                       value: provider.weeklyReminderEnabled,
                       enabled: !_notificationsBusy,
                       onChanged: _toggleWeeklyReminder,
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // ── 유용한 기능 ────────────────────────────────
+              _SectionLabel(title: '유용한 기능'),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.menu_book_outlined,
+                        label: '세무 용어 사전',
+                        onTap: () => context.push('/glossary'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.calculate_outlined,
+                        label: '세금 시뮬레이터',
+                        onTap: () => context.push('/simulator'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // ── 지원 및 정보 ──────────────────────────────
+              _SectionLabel(title: '지원 및 정보'),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _GroupCard(
+                  children: [
+                    _NavRow(
+                      icon: Icons.shield_outlined,
+                      label: '개인정보 처리방침',
+                      onTap: () => context.push('/privacy-policy'),
+                    ),
                     const _CardDivider(),
-                    // 데이터 초기화
                     _DangerRow(
-                      label: '데이터 초기화',
+                      icon: Icons.delete_outline,
+                      label: '앱 데이터 초기화',
                       onTap: () => _showResetDialog(context),
                     ),
                   ],
@@ -310,43 +341,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── 정보 ─────────────────────────────────────
-              _SectionLabel(title: '정보'),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _GroupCard(
-                  children: [
-                    _InfoRow(label: '앱 버전', value: '1.0.0'),
-                    const _CardDivider(),
-                    _NavRow(
-                      label: '개인정보 처리방침',
-                      onTap: () => context.push('/privacy-policy'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 36),
-
               // 푸터
               Center(
                 child: Column(
                   children: [
                     Text(
-                      'Copyright © 2024 TaxFintech Corp.',
-                      style: AppTypography.caption,
+                      'v1.0.0',
+                      style: AppTypography.caption.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'All rights reserved.',
-                      style: AppTypography.caption,
-                    ),
+                    const SizedBox(height: 8),
+                    Text('TaxRadar © 2024', style: AppTypography.caption),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 40),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// 액션 카드 (2단 버튼용)
+// ─────────────────────────────────────────────────────
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.primary, size: 28),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: AppTypography.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
@@ -363,11 +420,13 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Text(
         title,
         style: AppTypography.textTheme.labelLarge?.copyWith(
           color: AppColors.textSecondary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -375,7 +434,7 @@ class _SectionLabel extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────
-// 그룹 카드 (HTML breakdown card 패턴)
+// 그룹 카드
 // ─────────────────────────────────────────────────────
 class _GroupCard extends StatelessWidget {
   final List<Widget> children;
@@ -385,11 +444,10 @@ class _GroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,82 +465,59 @@ class _CardDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(
-      height: 1,
-      thickness: 1,
-      color: AppColors.borderLight,
+    return const Padding(
+      padding: EdgeInsets.only(left: 56),
+      child: Divider(height: 1, thickness: 1, color: AppColors.borderLight),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────
-// 정보 행 (label | value)
-// ─────────────────────────────────────────────────────
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _InfoRow({required this.label, required this.value, this.valueColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: AppTypography.textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          Text(
-            value,
-            style: AppTypography.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: valueColor ?? AppColors.textPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────
-// 네비게이션 행 (label [sub] | chevron)
+// 네비게이션 행 (icon | label [sub] | chevron)
 // ─────────────────────────────────────────────────────
 class _NavRow extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String? sub;
   final VoidCallback onTap;
 
-  const _NavRow({required this.label, this.sub, required this.onTap});
+  const _NavRow({
+    required this.icon,
+    required this.label,
+    this.sub,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
+            Icon(icon, color: AppColors.textSecondary, size: 24),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     label,
-                    style: AppTypography.textTheme.bodyMedium?.copyWith(
+                    style: AppTypography.textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   if (sub != null) ...[
                     const SizedBox(height: 2),
-                    Text(sub!, style: AppTypography.caption),
+                    Text(
+                      sub!,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -500,9 +535,10 @@ class _NavRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────
-// 토글 행 (label [sub] | switch)
+// 토글 행 (icon | label [sub] | switch)
 // ─────────────────────────────────────────────────────
 class _ToggleRow extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String? sub;
   final bool value;
@@ -510,6 +546,7 @@ class _ToggleRow extends StatelessWidget {
   final bool enabled;
 
   const _ToggleRow({
+    required this.icon,
     required this.label,
     this.sub,
     required this.value,
@@ -520,22 +557,30 @@ class _ToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
+          Icon(icon, color: AppColors.textSecondary, size: 24),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
-                  style: AppTypography.textTheme.bodyMedium?.copyWith(
+                  style: AppTypography.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 if (sub != null) ...[
                   const SizedBox(height: 2),
-                  Text(sub!, style: AppTypography.caption),
+                  Text(
+                    sub!,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -545,7 +590,11 @@ class _ToggleRow extends StatelessWidget {
             child: Switch(
               value: value,
               onChanged: enabled ? onChanged : null,
+              activeThumbColor: AppColors.surface,
               activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.border,
+              inactiveThumbColor: AppColors.surface,
+              trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
@@ -556,35 +605,38 @@ class _ToggleRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────
-// 위험 행 (red label | trash icon)
+// 위험 행 (icon | red label | trash icon)
 // ─────────────────────────────────────────────────────
 class _DangerRow extends StatelessWidget {
+  final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _DangerRow({required this.label, required this.onTap});
+  const _DangerRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.all(16),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: AppTypography.textTheme.bodyMedium?.copyWith(
-                color: AppColors.danger,
-                fontWeight: FontWeight.w500,
+            Icon(icon, color: AppColors.danger, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTypography.textTheme.bodyLarge?.copyWith(
+                  color: AppColors.danger,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const Icon(
-              Icons.delete_outline,
-              size: 20,
-              color: AppColors.danger,
             ),
           ],
         ),

@@ -54,6 +54,19 @@ extension PrecisionValueStatusX on PrecisionValueStatus {
   }
 }
 
+Map<String, dynamic>? _asStringDynamicMap(dynamic value) {
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+  return null;
+}
+
+int? _asInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return null;
+}
+
 enum BusinessInputMode { annual, monthly }
 
 enum VatInclusionChoice { included, excluded, unknown }
@@ -134,12 +147,12 @@ class NumericField {
   Map<String, dynamic> toJson() => {'value': value, 'status': status.name};
 
   factory NumericField.fromJson(Map<String, dynamic> json) {
-    final rawStatus = json['status'] as String?;
+    final rawStatus = json['status']?.toString();
     final status = PrecisionValueStatus.values.firstWhere(
       (item) => item.name == rawStatus,
       orElse: () => PrecisionValueStatus.missing,
     );
-    return NumericField(value: json['value'] as int?, status: status);
+    return NumericField(value: _asInt(json['value']), status: status);
   }
 }
 
@@ -173,13 +186,15 @@ class MonthlyBusinessInput {
   };
 
   factory MonthlyBusinessInput.fromJson(Map<String, dynamic> json) {
+    final salesMap = _asStringDynamicMap(json['sales']);
+    final expensesMap = _asStringDynamicMap(json['expenses']);
     return MonthlyBusinessInput(
       month: json['month'] as int? ?? 1,
-      sales: json['sales'] is Map<String, dynamic>
-          ? NumericField.fromJson(json['sales'] as Map<String, dynamic>)
+      sales: salesMap != null
+          ? NumericField.fromJson(salesMap)
           : NumericField.missing,
-      expenses: json['expenses'] is Map<String, dynamic>
-          ? NumericField.fromJson(json['expenses'] as Map<String, dynamic>)
+      expenses: expensesMap != null
+          ? NumericField.fromJson(expensesMap)
           : NumericField.missing,
     );
   }
@@ -215,15 +230,15 @@ class IncomeCategoryInput {
   };
 
   factory IncomeCategoryInput.fromJson(Map<String, dynamic> json) {
+    final incomeAmountMap = _asStringDynamicMap(json['incomeAmount']);
+    final withholdingTaxMap = _asStringDynamicMap(json['withholdingTax']);
     return IncomeCategoryInput(
       enabled: json['enabled'] as bool? ?? false,
-      incomeAmount: json['incomeAmount'] is Map<String, dynamic>
-          ? NumericField.fromJson(json['incomeAmount'] as Map<String, dynamic>)
+      incomeAmount: incomeAmountMap != null
+          ? NumericField.fromJson(incomeAmountMap)
           : NumericField.missing,
-      withholdingTax: json['withholdingTax'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['withholdingTax'] as Map<String, dynamic>,
-            )
+      withholdingTax: withholdingTaxMap != null
+          ? NumericField.fromJson(withholdingTaxMap)
           : NumericField.missing,
     );
   }
@@ -522,6 +537,30 @@ class PrecisionTaxDraft {
       );
     }
 
+    final annualSalesMap = _asStringDynamicMap(json['annualSales']);
+    final annualExpensesMap = _asStringDynamicMap(json['annualExpenses']);
+    final laborIncomeMap = _asStringDynamicMap(json['laborIncome']);
+    final pensionIncomeMap = _asStringDynamicMap(json['pensionIncome']);
+    final financialIncomeMap = _asStringDynamicMap(json['financialIncome']);
+    final otherIncomeMap = _asStringDynamicMap(json['otherIncome']);
+    final childrenCountMap = _asStringDynamicMap(json['childrenCount']);
+    final parentsCountMap = _asStringDynamicMap(json['parentsCount']);
+    final yellowUmbrellaAnnualPaymentMap = _asStringDynamicMap(
+      json['yellowUmbrellaAnnualPayment'],
+    );
+    final childTaxCreditCountMap = _asStringDynamicMap(
+      json['childTaxCreditCount'],
+    );
+    final employmentIncreaseCountMap = _asStringDynamicMap(
+      json['employmentIncreaseCount'],
+    );
+    final additionalTaxCreditMap = _asStringDynamicMap(
+      json['additionalTaxCredit'],
+    );
+    final ruralSpecialTaxMap = _asStringDynamicMap(json['ruralSpecialTax']);
+    final midtermPrepaymentMap = _asStringDynamicMap(json['midtermPrepayment']);
+    final otherPrepaymentMap = _asStringDynamicMap(json['otherPrepayment']);
+
     return PrecisionTaxDraft(
       taxYear: json['taxYear'] as int? ?? DateTime.now().year - 1,
       useEstimatedYearConstants:
@@ -536,94 +575,68 @@ class PrecisionTaxDraft {
       ),
       bookkeeping: json['bookkeeping'] as bool? ?? true,
       fillMissingMonths: json['fillMissingMonths'] as bool? ?? false,
-      annualSales: json['annualSales'] is Map<String, dynamic>
-          ? NumericField.fromJson(json['annualSales'] as Map<String, dynamic>)
+      annualSales: annualSalesMap != null
+          ? NumericField.fromJson(annualSalesMap)
           : NumericField.missing,
       annualSalesVatMode: parseVatMode(json['annualSalesVatMode'] as String?),
-      annualExpenses: json['annualExpenses'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['annualExpenses'] as Map<String, dynamic>,
-            )
+      annualExpenses: annualExpensesMap != null
+          ? NumericField.fromJson(annualExpensesMap)
           : NumericField.missing,
       monthlyBusinessInputs: monthlyInputs,
-      laborIncome: json['laborIncome'] is Map<String, dynamic>
-          ? IncomeCategoryInput.fromJson(
-              json['laborIncome'] as Map<String, dynamic>,
-            )
+      laborIncome: laborIncomeMap != null
+          ? IncomeCategoryInput.fromJson(laborIncomeMap)
           : const IncomeCategoryInput(),
-      pensionIncome: json['pensionIncome'] is Map<String, dynamic>
-          ? IncomeCategoryInput.fromJson(
-              json['pensionIncome'] as Map<String, dynamic>,
-            )
+      pensionIncome: pensionIncomeMap != null
+          ? IncomeCategoryInput.fromJson(pensionIncomeMap)
           : const IncomeCategoryInput(),
-      financialIncome: json['financialIncome'] is Map<String, dynamic>
-          ? IncomeCategoryInput.fromJson(
-              json['financialIncome'] as Map<String, dynamic>,
-            )
+      financialIncome: financialIncomeMap != null
+          ? IncomeCategoryInput.fromJson(financialIncomeMap)
           : const IncomeCategoryInput(),
-      otherIncome: json['otherIncome'] is Map<String, dynamic>
-          ? IncomeCategoryInput.fromJson(
-              json['otherIncome'] as Map<String, dynamic>,
-            )
+      otherIncome: otherIncomeMap != null
+          ? IncomeCategoryInput.fromJson(otherIncomeMap)
           : const IncomeCategoryInput(),
       financialOverTwentyMillion: parseSelection(
         json['financialOverTwentyMillion'] as String?,
       ),
       spouseSelection: parseSelection(json['spouseSelection'] as String?),
-      childrenCount: json['childrenCount'] is Map<String, dynamic>
-          ? NumericField.fromJson(json['childrenCount'] as Map<String, dynamic>)
+      childrenCount: childrenCountMap != null
+          ? NumericField.fromJson(childrenCountMap)
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
-      parentsCount: json['parentsCount'] is Map<String, dynamic>
-          ? NumericField.fromJson(json['parentsCount'] as Map<String, dynamic>)
+      parentsCount: parentsCountMap != null
+          ? NumericField.fromJson(parentsCountMap)
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
       yellowUmbrellaSelection: parseSelection(
         json['yellowUmbrellaSelection'] as String?,
       ),
-      yellowUmbrellaAnnualPayment:
-          json['yellowUmbrellaAnnualPayment'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['yellowUmbrellaAnnualPayment'] as Map<String, dynamic>,
-            )
+      yellowUmbrellaAnnualPayment: yellowUmbrellaAnnualPaymentMap != null
+          ? NumericField.fromJson(yellowUmbrellaAnnualPaymentMap)
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
       startupTaxReliefRate: parseStartupReliefRate(
         json['startupTaxReliefRate'] as String?,
       ),
-      childTaxCreditCount: json['childTaxCreditCount'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['childTaxCreditCount'] as Map<String, dynamic>,
-            )
+      childTaxCreditCount: childTaxCreditCountMap != null
+          ? NumericField.fromJson(childTaxCreditCountMap)
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
-      employmentIncreaseCount:
-          json['employmentIncreaseCount'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['employmentIncreaseCount'] as Map<String, dynamic>,
-            )
+      employmentIncreaseCount: employmentIncreaseCountMap != null
+          ? NumericField.fromJson(employmentIncreaseCountMap)
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
-      additionalTaxCredit: json['additionalTaxCredit'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['additionalTaxCredit'] as Map<String, dynamic>,
-            )
+      additionalTaxCredit: additionalTaxCreditMap != null
+          ? NumericField.fromJson(additionalTaxCreditMap)
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
-      ruralSpecialTax: json['ruralSpecialTax'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['ruralSpecialTax'] as Map<String, dynamic>,
-            )
+      ruralSpecialTax: ruralSpecialTaxMap != null
+          ? NumericField.fromJson(ruralSpecialTaxMap)
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
       midtermPrepaymentSelection: parseSelection(
         json['midtermPrepaymentSelection'] as String?,
       ),
-      midtermPrepayment: json['midtermPrepayment'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['midtermPrepayment'] as Map<String, dynamic>,
-            )
+      midtermPrepayment: midtermPrepaymentMap != null
+          ? NumericField.fromJson(midtermPrepaymentMap)
           : NumericField.missing,
       otherPrepaymentSelection: parseSelection(
         json['otherPrepaymentSelection'] as String?,
       ),
-      otherPrepayment: json['otherPrepayment'] is Map<String, dynamic>
-          ? NumericField.fromJson(
-              json['otherPrepayment'] as Map<String, dynamic>,
-            )
+      otherPrepayment: otherPrepaymentMap != null
+          ? NumericField.fromJson(otherPrepaymentMap)
           : NumericField.missing,
     );
   }
