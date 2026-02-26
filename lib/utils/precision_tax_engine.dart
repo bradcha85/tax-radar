@@ -54,9 +54,14 @@ class PrecisionTaxBreakdown {
   final int totalIncomeDeduction;
   final int taxableBase;
   final int calculatedIncomeTax;
-  final int additionalTaxCredit;
+  final int startupTaxRelief;
+  final int childTaxCredit;
+  final int employmentIncreaseTaxCredit;
+  final int otherTaxCredit;
+  final int taxReliefTotal;
   final int nationalTax;
   final int localTax;
+  final int ruralSpecialTax;
   final int totalTax;
   final int prepaymentTotal;
   final int additionalOrRefund;
@@ -76,9 +81,14 @@ class PrecisionTaxBreakdown {
     required this.totalIncomeDeduction,
     required this.taxableBase,
     required this.calculatedIncomeTax,
-    required this.additionalTaxCredit,
+    required this.startupTaxRelief,
+    required this.childTaxCredit,
+    required this.employmentIncreaseTaxCredit,
+    required this.otherTaxCredit,
+    required this.taxReliefTotal,
     required this.nationalTax,
     required this.localTax,
+    required this.ruralSpecialTax,
     required this.totalTax,
     required this.prepaymentTotal,
     required this.additionalOrRefund,
@@ -162,9 +172,14 @@ class _CoreOutcome {
   final int totalIncomeDeduction;
   final int taxableBase;
   final int calculatedIncomeTax;
-  final int additionalTaxCredit;
+  final int startupTaxRelief;
+  final int childTaxCredit;
+  final int employmentIncreaseTaxCredit;
+  final int otherTaxCredit;
+  final int taxReliefTotal;
   final int nationalTax;
   final int localTax;
+  final int ruralSpecialTax;
   final int totalTax;
   final int prepaymentTotal;
   final int additionalOrRefund;
@@ -183,9 +198,14 @@ class _CoreOutcome {
     required this.totalIncomeDeduction,
     required this.taxableBase,
     required this.calculatedIncomeTax,
-    required this.additionalTaxCredit,
+    required this.startupTaxRelief,
+    required this.childTaxCredit,
+    required this.employmentIncreaseTaxCredit,
+    required this.otherTaxCredit,
+    required this.taxReliefTotal,
     required this.nationalTax,
     required this.localTax,
+    required this.ruralSpecialTax,
     required this.totalTax,
     required this.prepaymentTotal,
     required this.additionalOrRefund,
@@ -263,6 +283,18 @@ class PrecisionTaxEngine {
         draft.financialOverTwentyMillion == SelectionState.unknown) {
       notices.add('금융소득 과세구분이 불확실해 결과 범위가 넓어질 수 있어요.');
     }
+    if (draft.startupTaxReliefRate == StartupTaxReliefRate.unknown) {
+      notices.add('창업감면 비율을 모름으로 선택해 0%로 보수 계산했어요.');
+    }
+    final usesTaxRelief =
+        draft.startupTaxReliefRate != StartupTaxReliefRate.none ||
+        draft.childTaxCreditCount.safeValue > 0 ||
+        draft.employmentIncreaseCount.safeValue > 0 ||
+        draft.additionalTaxCredit.safeValue > 0 ||
+        draft.ruralSpecialTax.safeValue > 0;
+    if (usesTaxRelief) {
+      notices.add('감면·공제는 조건/최저한세/농특세에 따라 실제와 차이가 날 수 있어요.');
+    }
     if (coreBase.prepaymentTotal == 0) {
       notices.add('기납부가 0원이면 추가 납부/환급은 참고용이에요.');
     }
@@ -282,9 +314,14 @@ class PrecisionTaxEngine {
       totalIncomeDeduction: coreBase.totalIncomeDeduction,
       taxableBase: coreBase.taxableBase,
       calculatedIncomeTax: coreBase.calculatedIncomeTax,
-      additionalTaxCredit: coreBase.additionalTaxCredit,
+      startupTaxRelief: coreBase.startupTaxRelief,
+      childTaxCredit: coreBase.childTaxCredit,
+      employmentIncreaseTaxCredit: coreBase.employmentIncreaseTaxCredit,
+      otherTaxCredit: coreBase.otherTaxCredit,
+      taxReliefTotal: coreBase.taxReliefTotal,
       nationalTax: coreBase.nationalTax,
       localTax: coreBase.localTax,
+      ruralSpecialTax: coreBase.ruralSpecialTax,
       totalTax: coreBase.totalTax,
       prepaymentTotal: coreBase.prepaymentTotal,
       additionalOrRefund: coreBase.additionalOrRefund,
@@ -428,15 +465,58 @@ class PrecisionTaxEngine {
     final calculatedIncomeTax = _truncate10(
       _applyTaxBracket(taxableBase, appliedYear),
     );
-    final additionalTaxCredit = _resolveAdditionalTaxCredit(
+
+    final startupTaxReliefRaw = _resolveStartupTaxRelief(
+      rate: draft.startupTaxReliefRate,
+      calculatedIncomeTax: calculatedIncomeTax,
+      boundMode: boundMode,
+    );
+    final childTaxCreditRaw = _resolveChildTaxCredit(
+      field: draft.childTaxCreditCount,
+      boundMode: boundMode,
+    );
+    final employmentIncreaseTaxCreditRaw = _resolveEmploymentIncreaseTaxCredit(
+      field: draft.employmentIncreaseCount,
+      boundMode: boundMode,
+    );
+    final otherTaxCreditRaw = _resolveAdditionalTaxCredit(
       field: draft.additionalTaxCredit,
       boundMode: boundMode,
     );
-    final nationalTax = _truncate10(
-      (calculatedIncomeTax - additionalTaxCredit).clamp(0, 1 << 60),
-    );
+
+    int remainingTax = calculatedIncomeTax.clamp(0, 1 << 60);
+    final startupTaxRelief = remainingTax < startupTaxReliefRaw
+        ? remainingTax
+        : startupTaxReliefRaw;
+    remainingTax -= startupTaxRelief;
+
+    final childTaxCredit =
+        remainingTax < childTaxCreditRaw ? remainingTax : childTaxCreditRaw;
+    remainingTax -= childTaxCredit;
+
+    final employmentIncreaseTaxCredit =
+        remainingTax < employmentIncreaseTaxCreditRaw
+            ? remainingTax
+            : employmentIncreaseTaxCreditRaw;
+    remainingTax -= employmentIncreaseTaxCredit;
+
+    final otherTaxCredit =
+        remainingTax < otherTaxCreditRaw ? remainingTax : otherTaxCreditRaw;
+    remainingTax -= otherTaxCredit;
+
+    final taxReliefTotal =
+        startupTaxRelief +
+        childTaxCredit +
+        employmentIncreaseTaxCredit +
+        otherTaxCredit;
+    final nationalTax = _truncate10(remainingTax.clamp(0, 1 << 60));
     final localTax = _truncate10((nationalTax * 0.1).floor());
-    final totalTax = nationalTax + localTax;
+    final ruralSpecialTax = _resolveRuralSpecialTax(
+      field: draft.ruralSpecialTax,
+      boundMode: boundMode,
+      forLowerBound: forLower,
+    );
+    final totalTax = nationalTax + localTax + ruralSpecialTax;
 
     final prepaymentTotal = _resolvePrepaymentTotal(
       draft: draft,
@@ -460,9 +540,14 @@ class PrecisionTaxEngine {
       totalIncomeDeduction: totalIncomeDeduction,
       taxableBase: taxableBase,
       calculatedIncomeTax: calculatedIncomeTax,
-      additionalTaxCredit: additionalTaxCredit,
+      startupTaxRelief: startupTaxRelief,
+      childTaxCredit: childTaxCredit,
+      employmentIncreaseTaxCredit: employmentIncreaseTaxCredit,
+      otherTaxCredit: otherTaxCredit,
+      taxReliefTotal: taxReliefTotal,
       nationalTax: nationalTax,
       localTax: localTax,
+      ruralSpecialTax: ruralSpecialTax,
       totalTax: totalTax,
       prepaymentTotal: prepaymentTotal,
       additionalOrRefund: additionalOrRefund,
@@ -880,11 +965,43 @@ class PrecisionTaxEngine {
       field: draft.yellowUmbrellaAnnualPayment,
       stepIndex: 2,
     );
+    if (draft.startupTaxReliefRate.status.isEstimated) {
+      items.add(
+        PrecisionEstimatedItem(
+          key: 'startup_tax_relief_rate',
+          title: '창업감면 비율',
+          description: '창업감면 비율을 모름으로 선택해 0%로 보수 계산했어요.',
+          stepIndex: 2,
+          status: draft.startupTaxReliefRate.status,
+        ),
+      );
+    }
     addFieldItem(
-      key: 'tax_credit',
-      title: '추가 세액공제',
-      description: '세액공제를 추정값으로 처리했어요.',
+      key: 'child_tax_credit',
+      title: '자녀 세액공제',
+      description: '자녀 세액공제를 추정값으로 처리했어요.',
+      field: draft.childTaxCreditCount,
+      stepIndex: 2,
+    );
+    addFieldItem(
+      key: 'employment_increase_credit',
+      title: '고용증대 세액공제',
+      description: '고용증대 세액공제를 추정값으로 처리했어요.',
+      field: draft.employmentIncreaseCount,
+      stepIndex: 2,
+    );
+    addFieldItem(
+      key: 'other_tax_relief',
+      title: '기타 감면·공제',
+      description: '기타 감면·공제를 추정값으로 처리했어요.',
       field: draft.additionalTaxCredit,
+      stepIndex: 2,
+    );
+    addFieldItem(
+      key: 'rural_special_tax',
+      title: '농어촌특별세',
+      description: '농어촌특별세를 추정값으로 처리했어요.',
+      field: draft.ruralSpecialTax,
       stepIndex: 2,
     );
 
@@ -952,8 +1069,19 @@ class PrecisionTaxEngine {
       SelectionState.unknown => 0.7,
       SelectionState.unset => 0.0,
     };
-    final extraCreditFactor = draft.additionalTaxCredit.status.scoreFactor;
-    final deductionExtraFactor = (yellowFactor + extraCreditFactor) / 2;
+    final startupReliefFactor = draft.startupTaxReliefRate.status.scoreFactor;
+    final childCreditFactor = draft.childTaxCreditCount.status.scoreFactor;
+    final employmentFactor = draft.employmentIncreaseCount.status.scoreFactor;
+    final otherReliefFactor = draft.additionalTaxCredit.status.scoreFactor;
+    final ruralTaxFactor = draft.ruralSpecialTax.status.scoreFactor;
+    final deductionExtraFactor =
+        (yellowFactor +
+            startupReliefFactor +
+            childCreditFactor +
+            employmentFactor +
+            otherReliefFactor +
+            ruralTaxFactor) /
+        6;
 
     final score =
         (salesFactor * 30) +
@@ -1061,8 +1189,19 @@ class PrecisionTaxEngine {
       SelectionState.unknown => 0.7,
       SelectionState.unset => 0.0,
     };
-    final extraCreditFactor = draft.additionalTaxCredit.status.scoreFactor;
-    final extraDeductionFactor = (yellowFactor + extraCreditFactor) / 2;
+    final startupReliefFactor = draft.startupTaxReliefRate.status.scoreFactor;
+    final childCreditFactor = draft.childTaxCreditCount.status.scoreFactor;
+    final employmentCreditFactor = draft.employmentIncreaseCount.status.scoreFactor;
+    final otherReliefFactor = draft.additionalTaxCredit.status.scoreFactor;
+    final ruralTaxFactor = draft.ruralSpecialTax.status.scoreFactor;
+    final extraDeductionFactor =
+        (yellowFactor +
+            startupReliefFactor +
+            childCreditFactor +
+            employmentCreditFactor +
+            otherReliefFactor +
+            ruralTaxFactor) /
+        6;
 
     final withholdingFactors = <double>[];
     if (draft.hasLaborIncome) {
@@ -1140,7 +1279,7 @@ class PrecisionTaxEngine {
       PrecisionNextAction(
         key: 'loss_deduction_extra',
         title: '공제 항목 확인',
-        description: '노란우산/세액공제 입력 시 세금이 줄 수 있어요.',
+        description: '노란우산/감면·공제 입력 시 세금이 줄 수 있어요.',
         stepIndex: 2,
         lostScore: 15 * (1 - extraDeductionFactor),
       ),
@@ -1206,6 +1345,99 @@ class PrecisionTaxEngine {
             increasesResult: false,
           );
     return _truncate10(resolved);
+  }
+
+  static int _resolveStartupTaxRelief({
+    required StartupTaxReliefRate rate,
+    required int calculatedIncomeTax,
+    required _BoundMode boundMode,
+  }) {
+    if (calculatedIncomeTax <= 0) return 0;
+
+    int percent;
+    switch (rate) {
+      case StartupTaxReliefRate.none:
+        percent = 0;
+      case StartupTaxReliefRate.rate50:
+        percent = 50;
+      case StartupTaxReliefRate.rate75:
+        percent = 75;
+      case StartupTaxReliefRate.rate100:
+        percent = 100;
+      case StartupTaxReliefRate.unset:
+        percent = 0;
+      case StartupTaxReliefRate.unknown:
+        percent = switch (boundMode) {
+          _BoundMode.lower => 100,
+          _BoundMode.upper => 0,
+          _BoundMode.base => 0,
+        };
+    }
+
+    final raw = ((calculatedIncomeTax * percent) / 100).round();
+    return _truncate10(raw.clamp(0, calculatedIncomeTax));
+  }
+
+  static int _resolveChildTaxCredit({
+    required NumericField field,
+    required _BoundMode boundMode,
+  }) {
+    final count = field.safeValue.clamp(0, 99);
+    int base;
+    if (count <= 0) {
+      base = 0;
+    } else if (count == 1) {
+      base = 250000;
+    } else if (count == 2) {
+      base = 550000;
+    } else {
+      base = 550000 + (count - 2) * 400000;
+    }
+
+    final resolved = boundMode == _BoundMode.base
+        ? base
+        : _applyUncertainty(
+            value: base,
+            status: field.status,
+            forLowerBound: boundMode == _BoundMode.lower,
+            increasesResult: false,
+          );
+    return _truncate10(resolved.clamp(0, 1 << 60));
+  }
+
+  static int _resolveEmploymentIncreaseTaxCredit({
+    required NumericField field,
+    required _BoundMode boundMode,
+  }) {
+    const creditPerEmployee = 10000000;
+    final baseCount = field.safeValue.clamp(0, 999);
+    final base = (baseCount * creditPerEmployee).clamp(0, 1 << 60);
+    final resolved = boundMode == _BoundMode.base
+        ? base
+        : _applyUncertainty(
+            value: base,
+            status: field.status,
+            forLowerBound: boundMode == _BoundMode.lower,
+            increasesResult: false,
+          );
+    return _truncate10(resolved.clamp(0, 1 << 60));
+  }
+
+  static int _resolveRuralSpecialTax({
+    required NumericField field,
+    required _BoundMode boundMode,
+    required bool forLowerBound,
+  }) {
+    final base = field.safeValue.clamp(0, 1 << 60);
+    final resolved = boundMode == _BoundMode.base
+        ? base
+        : _applyUncertainty(
+            value: base,
+            status: field.status,
+            forLowerBound: forLowerBound,
+            increasesResult: true,
+          );
+    return _truncate10(resolved.clamp(0, 1 << 60));
   }
 
   static int _resolveYellowUmbrellaDeduction({

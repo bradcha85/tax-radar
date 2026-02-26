@@ -74,6 +74,40 @@ extension SelectionStateX on SelectionState {
   }
 }
 
+enum StartupTaxReliefRate { unset, none, rate50, rate75, rate100, unknown }
+
+extension StartupTaxReliefRateX on StartupTaxReliefRate {
+  PrecisionValueStatus get status {
+    switch (this) {
+      case StartupTaxReliefRate.none:
+      case StartupTaxReliefRate.rate50:
+      case StartupTaxReliefRate.rate75:
+      case StartupTaxReliefRate.rate100:
+        return PrecisionValueStatus.complete;
+      case StartupTaxReliefRate.unknown:
+        return PrecisionValueStatus.estimatedUser;
+      case StartupTaxReliefRate.unset:
+        return PrecisionValueStatus.missing;
+    }
+  }
+
+  int get percent {
+    switch (this) {
+      case StartupTaxReliefRate.none:
+        return 0;
+      case StartupTaxReliefRate.rate50:
+        return 50;
+      case StartupTaxReliefRate.rate75:
+        return 75;
+      case StartupTaxReliefRate.rate100:
+        return 100;
+      case StartupTaxReliefRate.unknown:
+      case StartupTaxReliefRate.unset:
+        return 0;
+    }
+  }
+}
+
 class NumericField {
   final int? value;
   final PrecisionValueStatus status;
@@ -225,7 +259,11 @@ class PrecisionTaxDraft {
   final NumericField parentsCount;
   final SelectionState yellowUmbrellaSelection;
   final NumericField yellowUmbrellaAnnualPayment;
+  final StartupTaxReliefRate startupTaxReliefRate;
+  final NumericField childTaxCreditCount;
+  final NumericField employmentIncreaseCount;
   final NumericField additionalTaxCredit;
+  final NumericField ruralSpecialTax;
 
   final SelectionState midtermPrepaymentSelection;
   final NumericField midtermPrepayment;
@@ -266,7 +304,20 @@ class PrecisionTaxDraft {
       value: 0,
       status: PrecisionValueStatus.complete,
     ),
+    this.startupTaxReliefRate = StartupTaxReliefRate.none,
+    this.childTaxCreditCount = const NumericField(
+      value: 0,
+      status: PrecisionValueStatus.complete,
+    ),
+    this.employmentIncreaseCount = const NumericField(
+      value: 0,
+      status: PrecisionValueStatus.complete,
+    ),
     this.additionalTaxCredit = const NumericField(
+      value: 0,
+      status: PrecisionValueStatus.complete,
+    ),
+    this.ruralSpecialTax = const NumericField(
       value: 0,
       status: PrecisionValueStatus.complete,
     ),
@@ -312,7 +363,11 @@ class PrecisionTaxDraft {
     NumericField? parentsCount,
     SelectionState? yellowUmbrellaSelection,
     NumericField? yellowUmbrellaAnnualPayment,
+    StartupTaxReliefRate? startupTaxReliefRate,
+    NumericField? childTaxCreditCount,
+    NumericField? employmentIncreaseCount,
     NumericField? additionalTaxCredit,
+    NumericField? ruralSpecialTax,
     SelectionState? midtermPrepaymentSelection,
     NumericField? midtermPrepayment,
     SelectionState? otherPrepaymentSelection,
@@ -348,7 +403,12 @@ class PrecisionTaxDraft {
           yellowUmbrellaSelection ?? this.yellowUmbrellaSelection,
       yellowUmbrellaAnnualPayment:
           yellowUmbrellaAnnualPayment ?? this.yellowUmbrellaAnnualPayment,
+      startupTaxReliefRate: startupTaxReliefRate ?? this.startupTaxReliefRate,
+      childTaxCreditCount: childTaxCreditCount ?? this.childTaxCreditCount,
+      employmentIncreaseCount:
+          employmentIncreaseCount ?? this.employmentIncreaseCount,
       additionalTaxCredit: additionalTaxCredit ?? this.additionalTaxCredit,
+      ruralSpecialTax: ruralSpecialTax ?? this.ruralSpecialTax,
       midtermPrepaymentSelection:
           midtermPrepaymentSelection ?? this.midtermPrepaymentSelection,
       midtermPrepayment: midtermPrepayment ?? this.midtermPrepayment,
@@ -407,7 +467,11 @@ class PrecisionTaxDraft {
     'parentsCount': parentsCount.toJson(),
     'yellowUmbrellaSelection': yellowUmbrellaSelection.name,
     'yellowUmbrellaAnnualPayment': yellowUmbrellaAnnualPayment.toJson(),
+    'startupTaxReliefRate': startupTaxReliefRate.name,
+    'childTaxCreditCount': childTaxCreditCount.toJson(),
+    'employmentIncreaseCount': employmentIncreaseCount.toJson(),
     'additionalTaxCredit': additionalTaxCredit.toJson(),
+    'ruralSpecialTax': ruralSpecialTax.toJson(),
     'midtermPrepaymentSelection': midtermPrepaymentSelection.name,
     'midtermPrepayment': midtermPrepayment.toJson(),
     'otherPrepaymentSelection': otherPrepaymentSelection.name,
@@ -448,6 +512,13 @@ class PrecisionTaxDraft {
       return SelectionState.values.firstWhere(
         (item) => item.name == raw,
         orElse: () => SelectionState.unset,
+      );
+    }
+
+    StartupTaxReliefRate parseStartupReliefRate(String? raw) {
+      return StartupTaxReliefRate.values.firstWhere(
+        (item) => item.name == raw,
+        orElse: () => StartupTaxReliefRate.none,
       );
     }
 
@@ -514,9 +585,28 @@ class PrecisionTaxDraft {
               json['yellowUmbrellaAnnualPayment'] as Map<String, dynamic>,
             )
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
+      startupTaxReliefRate: parseStartupReliefRate(
+        json['startupTaxReliefRate'] as String?,
+      ),
+      childTaxCreditCount: json['childTaxCreditCount'] is Map<String, dynamic>
+          ? NumericField.fromJson(
+              json['childTaxCreditCount'] as Map<String, dynamic>,
+            )
+          : const NumericField(value: 0, status: PrecisionValueStatus.complete),
+      employmentIncreaseCount:
+          json['employmentIncreaseCount'] is Map<String, dynamic>
+          ? NumericField.fromJson(
+              json['employmentIncreaseCount'] as Map<String, dynamic>,
+            )
+          : const NumericField(value: 0, status: PrecisionValueStatus.complete),
       additionalTaxCredit: json['additionalTaxCredit'] is Map<String, dynamic>
           ? NumericField.fromJson(
               json['additionalTaxCredit'] as Map<String, dynamic>,
+            )
+          : const NumericField(value: 0, status: PrecisionValueStatus.complete),
+      ruralSpecialTax: json['ruralSpecialTax'] is Map<String, dynamic>
+          ? NumericField.fromJson(
+              json['ruralSpecialTax'] as Map<String, dynamic>,
             )
           : const NumericField(value: 0, status: PrecisionValueStatus.complete),
       midtermPrepaymentSelection: parseSelection(

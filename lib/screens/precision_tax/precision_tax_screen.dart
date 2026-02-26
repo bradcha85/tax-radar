@@ -190,7 +190,7 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
       case 1:
         return _buildStep1(provider.business.businessType);
       case 2:
-        return _buildStep2();
+        return _buildStep2(result);
       case 3:
         return _buildStep3();
       case 4:
@@ -719,7 +719,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
   // Step 2 · 공제
   // ---------------------------------------------------------------------------
 
-  Widget _buildStep2() {
+  Widget _buildStep2(PrecisionTaxResult result) {
+    final summary = result.breakdown;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -749,8 +750,8 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               _amountField(
                 keyName: 'children_count',
                 value: _draft.childrenCount.value,
-                label: '자녀 수',
-                hint: '자녀 수(명)',
+                label: '부양 자녀 수',
+                hint: '부양 자녀 수(명)',
                 statusLabel: _draft.childrenCount.status.label,
                 onChanged: (field) {
                   _updateDraft((draft) => draft.copyWith(childrenCount: field));
@@ -834,20 +835,226 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
               title: Text(
-                '더 정확하게(선택)',
+                '감면·세액공제(선택)',
                 style: AppTypography.textTheme.titleSmall,
               ),
               children: [
+                TermHelpHeader(
+                  title: '창업감면',
+                  termId: 'T31',
+                  statusLabel: _draft.startupTaxReliefRate.status.label,
+                ),
+                const SizedBox(height: 12),
+                _buildNotionChips(
+                  options: const [
+                    _ChipOption('없음(0%)', StartupTaxReliefRate.none),
+                    _ChipOption('50%', StartupTaxReliefRate.rate50),
+                    _ChipOption('75%', StartupTaxReliefRate.rate75),
+                    _ChipOption('100%', StartupTaxReliefRate.rate100),
+                    _ChipOption('모르겠어요', StartupTaxReliefRate.unknown),
+                  ],
+                  selectedValue: _draft.startupTaxReliefRate,
+                  onSelected: (value) {
+                    _updateDraft(
+                      (draft) => draft.copyWith(
+                        startupTaxReliefRate: value as StartupTaxReliefRate,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '예상 감면액: ${Formatters.formatWonWithUnit(summary.startupTaxRelief)}',
+                  style: AppTypography.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TermHelpHeader(
+                  title: '자녀세액공제(대상)',
+                  termId: 'T34',
+                  statusLabel: _draft.childTaxCreditCount.status.label,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '자녀 소득금액 100만원 이하 + 만 8~20세 자녀만 입력해요.',
+                  style: AppTypography.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _amountField(
-                  keyName: 'additional_tax_credit',
+                  keyName: 'child_tax_credit_count',
+                  value: _draft.childTaxCreditCount.value,
+                  hint: '대상 자녀 수(명)',
+                  statusLabel: _draft.childTaxCreditCount.status.label,
+                  onChanged: (field) {
+                    _updateDraft((draft) => draft.copyWith(childTaxCreditCount: field));
+                  },
+                  isCount: true,
+                ),
+                const SizedBox(height: 8),
+                _notionOutlinedButton(
+                  label: '모르겠어요',
+                  onPressed: () {
+                    _setFieldDirect(
+                      keyName: 'child_tax_credit_count',
+                      field: const NumericField(
+                        value: 0,
+                        status: PrecisionValueStatus.estimatedZero,
+                      ),
+                      apply: (draft, field) =>
+                          draft.copyWith(childTaxCreditCount: field),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '예상 공제액: ${Formatters.formatWonWithUnit(summary.childTaxCredit)}',
+                  style: AppTypography.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TermHelpHeader(
+                  title: '고용증대(4대보험 근로자 증가)',
+                  termId: 'T32',
+                  statusLabel: _draft.employmentIncreaseCount.status.label,
+                ),
+                const SizedBox(height: 12),
+                _amountField(
+                  keyName: 'employment_increase_count',
+                  value: _draft.employmentIncreaseCount.value,
+                  hint: '근로자 증가 인원(명)',
+                  statusLabel: _draft.employmentIncreaseCount.status.label,
+                  onChanged: (field) {
+                    _updateDraft(
+                      (draft) =>
+                          draft.copyWith(employmentIncreaseCount: field),
+                    );
+                  },
+                  isCount: true,
+                ),
+                const SizedBox(height: 8),
+                _notionOutlinedButton(
+                  label: '모르겠어요',
+                  onPressed: () {
+                    _setFieldDirect(
+                      keyName: 'employment_increase_count',
+                      field: const NumericField(
+                        value: 0,
+                        status: PrecisionValueStatus.estimatedZero,
+                      ),
+                      apply: (draft, field) =>
+                          draft.copyWith(employmentIncreaseCount: field),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '예상 공제액: ${Formatters.formatWonWithUnit(summary.employmentIncreaseTaxCredit)}',
+                  style: AppTypography.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TermHelpHeader(
+                  title: '기타 감면·공제',
+                  termId: 'T14',
+                  statusLabel: _draft.additionalTaxCredit.status.label,
+                ),
+                const SizedBox(height: 12),
+                _amountField(
+                  keyName: 'other_tax_credit',
                   value: _draft.additionalTaxCredit.value,
-                  hint: '추가 세액공제 합계(원)',
+                  hint: '기타 감면·공제 합계(원)',
                   statusLabel: _draft.additionalTaxCredit.status.label,
                   onChanged: (field) {
                     _updateDraft(
                       (draft) => draft.copyWith(additionalTaxCredit: field),
                     );
                   },
+                ),
+                const SizedBox(height: 8),
+                _notionOutlinedButton(
+                  label: '모르겠어요',
+                  onPressed: () {
+                    _setFieldDirect(
+                      keyName: 'other_tax_credit',
+                      field: const NumericField(
+                        value: 0,
+                        status: PrecisionValueStatus.estimatedZero,
+                      ),
+                      apply: (draft, field) =>
+                          draft.copyWith(additionalTaxCredit: field),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                TermHelpHeader(
+                  title: '농어촌특별세(해당 시)',
+                  termId: 'T33',
+                  statusLabel: _draft.ruralSpecialTax.status.label,
+                ),
+                const SizedBox(height: 12),
+                _amountField(
+                  keyName: 'rural_special_tax',
+                  value: _draft.ruralSpecialTax.value,
+                  hint: '농어촌특별세(원)',
+                  statusLabel: _draft.ruralSpecialTax.status.label,
+                  onChanged: (field) {
+                    _updateDraft((draft) => draft.copyWith(ruralSpecialTax: field));
+                  },
+                ),
+                const SizedBox(height: 8),
+                _notionOutlinedButton(
+                  label: '모르겠어요',
+                  onPressed: () {
+                    _setFieldDirect(
+                      keyName: 'rural_special_tax',
+                      field: const NumericField(
+                        value: 0,
+                        status: PrecisionValueStatus.estimatedZero,
+                      ),
+                      apply: (draft, field) =>
+                          draft.copyWith(ruralSpecialTax: field),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '차감세액(감면·공제 합계)',
+                        style: AppTypography.textTheme.bodyMedium?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        Formatters.formatWonWithUnit(summary.taxReliefTotal),
+                        style: AppTypography.textTheme.titleMedium?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -1129,11 +1336,32 @@ class _PrecisionTaxScreenState extends State<PrecisionTaxScreen> {
                   termId: 'T12',
                 ),
                 _breakdownRow(
-                  '세액공제',
-                  summary.additionalTaxCredit,
+                  '차감세액(감면·공제)',
+                  summary.taxReliefTotal,
+                  termId: 'T14',
+                ),
+                _breakdownRow(
+                  '  · 창업감면',
+                  summary.startupTaxRelief,
+                  termId: 'T31',
+                ),
+                _breakdownRow(
+                  '  · 자녀 세액공제',
+                  summary.childTaxCredit,
+                  termId: 'T34',
+                ),
+                _breakdownRow(
+                  '  · 고용증대 공제',
+                  summary.employmentIncreaseTaxCredit,
+                  termId: 'T32',
+                ),
+                _breakdownRow(
+                  '  · 기타 감면·공제',
+                  summary.otherTaxCredit,
                   termId: 'T14',
                 ),
                 _breakdownRow('종합소득세(국세)', summary.nationalTax, termId: 'T01'),
+                _breakdownRow('농어촌특별세', summary.ruralSpecialTax, termId: 'T33'),
                 _breakdownRow('지방소득세', summary.localTax, termId: 'T02'),
                 _breakdownRow('총세금(결정세액)', summary.totalTax, termId: 'T03'),
                 _breakdownRow('기납부세액', summary.prepaymentTotal, termId: 'T04'),
